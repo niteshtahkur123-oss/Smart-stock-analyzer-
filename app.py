@@ -11,11 +11,12 @@ st.set_page_config(
 )
 
 st.title("📊 Smart Stock Analyzer")
-st.caption("SSA Version 0.3 | NSE Swing Stock Analyzer")
+st.caption("SSA Version 0.4 | Advanced Swing Analysis")
 
 st.warning(
     "Yahoo Finance data may be delayed or unavailable. "
-    "Verify prices with your broker. Signals are not guaranteed."
+    "Verify prices with your broker. Historical results "
+    "do not guarantee future performance."
 )
 
 DEFAULT_STOCKS = """
@@ -88,19 +89,22 @@ with st.sidebar:
     )
 
     period = st.selectbox(
-        "Historical Data", ["1y", "2y", "5y"]
+        "Historical Data",
+        ["1y", "2y", "5y"],
+        index=1
     )
 
     trading_cost = st.number_input(
-        "Estimated Round-trip Cost (%)",
+        "Round-trip Trading Cost %",
         min_value=0.0,
         max_value=2.0,
         value=0.20,
         step=0.05
     )
 
-    st.caption(
-        "Cost assumption is used only in the backtest."
+    holding_days = st.slider(
+        "Maximum Holding Days",
+        5, 20, 10
     )
 
 symbols_text = st.text_area(
@@ -121,27 +125,8 @@ symbols = [
 ]
 
 
-def calculate_rsi(close):
-    delta = close.diff()
-
-    gain = delta.clip(lower=0).ewm(
-        alpha=1/14, adjust=False, min_periods=14
-    ).mean()
-
-    loss = (-delta.clip(upper=0)).ewm(
-        alpha=1/14, adjust=False, min_periods=14
-    ).mean()
-
-    rs = gain / loss.replace(0, np.nan)
-    rsi = 100 - (100 / (1 + rs))
-
-    rsi = rsi.mask((loss == 0) & (gain > 0), 100)
-    rsi = rsi.mask((loss == 0) & (gain == 0), 50)
-
-    return rsi
-
-
 def download_stock(symbol):
+
     df = yf.download(
         symbol,
         period=period,
@@ -157,49 +142,65 @@ def download_stock(symbol):
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
 
-    required = ["Open", "High", "Low", "Close", "Volume"]
+    required = [
+        "Open", "High", "Low", "Close", "Volume"
+    ]
 
-    if not all(col in df.columns for col in required):
+    if not all(c in df.columns for c in required):
         return None
 
     df = df[required].copy()
 
-    for col in required:
-        df[col] = pd.to_numeric(
-            df[col], errors="coerce"
-        )
+    for c in required:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
 
-    df = df.dropna(subset=["Open", "High", "Low", "Close"])
+    df = df.dropna(
+        subset=["Open", "High", "Low", "Close"]
+    )
 
-    return df if not df.empty else None
+    return df if len(df) else None
 
 
-def prepare_indicators(df):
+def calculate_indicators(df):
+
+    df = df.copy()
 
     close = df["Close"]
     high = df["High"]
     low = df["Low"]
     volume = df["Volume"].fillna(0)
 
-    df = df.copy()
+    for span in [9, 20, 50, 200]:
+        df[f"EMA{span}"] = close.ewm(
+            span=span,
+            adjust=False
+        ).mean()
 
-    df["EMA9"] = close.ewm(
-        span=9, adjust=False
+    delta = close.diff()
+
+    gain = delta.clip(lower=0).ewm(
+        alpha=1/14,
+        adjust=False,
+        min_periods=14
     ).mean()
 
-    df["EMA20"] = close.ewm(
-        span=20, adjust=False
+    loss = (-delta.clip(upper=0)).ewm(
+        alpha=1/14,
+        adjust=False,
+        min_periods=14
     ).mean()
 
-    df["EMA50"] = close.ewm(
-        span=50, adjust=False
-    ).mean()
+    rs = gain / loss.replace(0, np.nan)
 
-    df["EMA200"] = close.ewm(
-        span=200, adjust=False
-    ).mean()
+    df["RSI"] = 100 - (100 / (1 + rs))
 
-    df["RSI"] = calculate_rsi(close)
+    df.loc[
+        (loss == 0) & (gain > 0), "RSI"
+    ] = 100
+
+    df.loc[
+        (loss == 0) & (gain == 0), "RSI"
+    ] = 50
 
     macd = (
         close.ewm(span=12, adjust=False).mean()
@@ -207,7 +208,8 @@ def prepare_indicators(df):
     )
 
     macd_signal = macd.ewm(
-        span=9, adjust=False
+        span=9,
+        adjust=False
     ).mean()
 
     df["MACD_Bullish"] = macd > macd_signal
@@ -231,14 +233,39 @@ def prepare_indicators(df):
     return df
 
 
-def analyze_stock(symbol):
+def get_score(row, index):
 
-    raw = download_stock(symbol)
+    rsi = row["RSI"]
 
-    if raw is None or len(raw) < 30:
-        return None, None, "Insufficient data"
+    if not np.isfinite(rsi):
+        return 0
 
-    df = prepare_indicators(raw)
+    score = 0
+
+    score += int(row["Close"] > row["EMA20"])
+    score += int(row["EMA20"] > row["EMA50"])
+    score += int(row["MACD_Bullish"])
+    score += int(50 <= rsi <= 70)
+
+    score += int(
+        np.isfinite(row["VolumeRatio"])
+        and row["VolumeRatio"] >= 1.5
+    )
+
+    score += int(
+        index >= 199
+        and row["Close"] > row["EMA200"]
+    )
+
+    return score
+
+
+def analyze_stock(symbol, df):
+
+    if df is None or len(df) < 30:
+        return None
+
+    df = calculate_indicators(df)
 
     row = df.iloc[-1]
 
@@ -246,7 +273,7 @@ def analyze_stock(symbol):
     rsi = float(row["RSI"])
 
     if not np.isfinite(rsi):
-        return None, df, "RSI unavailable"
+        return None
 
     ema9 = float(row["EMA9"])
     ema20 = float(row["EMA20"])
@@ -264,16 +291,12 @@ def analyze_stock(symbol):
 
     volume_ratio = float(row["VolumeRatio"])
 
-    bullish_macd = bool(row["MACD_Bullish"])
-
     high52 = float(df["High"].tail(252).max())
     low52 = float(df["Low"].tail(252).min())
 
-    range52 = high52 - low52
-
     position52 = (
-        ((price - low52) / range52) * 100
-        if range52 > 0 else 50
+        (price - low52) / (high52 - low52) * 100
+        if high52 > low52 else 50
     )
 
     if price > ema20 > ema50:
@@ -283,18 +306,7 @@ def analyze_stock(symbol):
     else:
         trend = "NEUTRAL"
 
-    score = 0
-
-    score += int(price > ema20)
-    score += int(ema20 > ema50)
-    score += int(bullish_macd)
-    score += int(50 <= rsi <= 70)
-    score += int(
-        np.isfinite(volume_ratio) and volume_ratio >= 1.5
-    )
-    score += int(
-        np.isfinite(ema200) and price > ema200
-    )
+    score = get_score(row, len(df) - 1)
 
     if score >= 5:
         signal = "BUY WATCH"
@@ -316,13 +328,11 @@ def analyze_stock(symbol):
     rr1 = (target1 - entry) / risk if risk > 0 else 0
     rr2 = (target2 - entry) / risk if risk > 0 else 0
 
-    result = {
+    return {
         "Stock": symbol.replace(".NS", ""),
         "Price ₹": round(price, 2),
         "Trend": trend,
         "52W Position %": round(position52, 1),
-        "52W Low ₹": round(low52, 2),
-        "52W High ₹": round(high52, 2),
         "RSI": round(rsi, 1),
         "EMA 9": round(ema9, 2),
         "EMA 20": round(ema20, 2),
@@ -343,113 +353,150 @@ def analyze_stock(symbol):
         "Data Date": str(df.index[-1].date())
     }
 
-    return result, df, "OK"
 
-
-def backtest(df, cost_percent):
-
-    if len(df) < 100:
-        return None
-
-    close = df["Close"]
-    high = df["High"]
-    low = df["Low"]
-    open_price = df["Open"]
+def run_backtest(df, cost, max_days):
 
     trades = []
 
-    cost = cost_percent / 100
+    if len(df) < 220:
+        return trades
 
-    # Signal is generated after a completed daily candle.
-    # Entry is at the following day's open.
-    for i in range(60, len(df) - 1):
+    # Start only after enough EMA200 history.
+    i = 199
+
+    while i < len(df) - 1:
 
         row = df.iloc[i]
 
-        price = float(row["Close"])
-        rsi = float(row["RSI"])
-
-        if not np.isfinite(rsi):
-            continue
-
-        score = 0
-
-        score += int(price > row["EMA20"])
-        score += int(row["EMA20"] > row["EMA50"])
-        score += int(row["MACD_Bullish"])
-        score += int(50 <= rsi <= 70)
-        score += int(
-            np.isfinite(row["VolumeRatio"])
-            and row["VolumeRatio"] >= 1.5
-        )
-        score += int(
-            i >= 199 and price > row["EMA200"]
-        )
+        score = get_score(row, i)
 
         if score < 5:
+            i += 1
             continue
-
-        entry = float(open_price.iloc[i + 1])
 
         atr = float(row["ATR"])
 
         if not np.isfinite(atr) or atr <= 0:
+            i += 1
+            continue
+
+        # Signal after today's close.
+        # Entry on next trading day's open.
+        entry_index = i + 1
+
+        entry = float(df["Open"].iloc[entry_index])
+
+        if not np.isfinite(entry) or entry <= 0:
+            i += 1
             continue
 
         stop = entry - 1.5 * atr
         target = entry + 2 * atr
 
+        last_index = min(
+            entry_index + max_days - 1,
+            len(df) - 1
+        )
+
         exit_price = None
-        exit_reason = "10-day exit"
+        exit_reason = "Time Exit"
+        exit_index = last_index
 
-        last_day = min(i + 11, len(df))
+        for j in range(entry_index, last_index + 1):
 
-        for j in range(i + 1, last_day):
+            day_low = float(df["Low"].iloc[j])
+            day_high = float(df["High"].iloc[j])
 
-            day_low = float(low.iloc[j])
-            day_high = float(high.iloc[j])
-
-            # Conservative assumption:
-            # If both stop and target are touched,
-            # assume stop was hit first.
+            # Conservative rule if both levels are touched.
             if day_low <= stop:
                 exit_price = stop
                 exit_reason = "Stop Loss"
+                exit_index = j
                 break
 
             if day_high >= target:
                 exit_price = target
                 exit_reason = "Target"
+                exit_index = j
                 break
 
         if exit_price is None:
-            exit_price = float(close.iloc[last_day - 1])
+            exit_price = float(df["Close"].iloc[last_index])
 
-        net_return = (
-            (exit_price - entry) / entry
-        ) * 100 - cost_percent
+        gross_return = (
+            (exit_price / entry) - 1
+        ) * 100
+
+        net_return = gross_return - cost
 
         trades.append({
-            "Return %": net_return,
-            "Exit": exit_reason
+            "Entry Date": str(
+                df.index[entry_index].date()
+            ),
+            "Exit Date": str(
+                df.index[exit_index].date()
+            ),
+            "Entry ₹": round(entry, 2),
+            "Exit ₹": round(exit_price, 2),
+            "Exit Reason": exit_reason,
+            "Return %": round(net_return, 2)
         })
 
-    if not trades:
-        return {
-            "Trades": 0,
-            "Win Rate %": 0,
-            "Avg Return %": 0
-        }
+        # One trade at a time per stock.
+        i = exit_index + 1
 
-    trade_df = pd.DataFrame(trades)
+    return trades
+
+
+def calculate_metrics(trades):
+
+    if not trades:
+        return None
+
+    tdf = pd.DataFrame(trades)
+
+    returns = tdf["Return %"].astype(float)
+
+    wins = returns[returns > 0]
+    losses = returns[returns <= 0]
+
+    gross_profit = wins.sum()
+    gross_loss = abs(losses.sum())
+
+    profit_factor = (
+        gross_profit / gross_loss
+        if gross_loss > 0 else np.inf
+    )
+
+    equity = (1 + returns / 100).cumprod()
+
+    peak = equity.cummax()
+
+    drawdown = (
+        (equity / peak) - 1
+    ) * 100
 
     return {
-        "Trades": len(trade_df),
+        "Trades": len(tdf),
         "Win Rate %": round(
-            (trade_df["Return %"] > 0).mean() * 100, 1
+            (returns > 0).mean() * 100, 1
         ),
-        "Avg Return %": round(
-            trade_df["Return %"].mean(), 2
+        "Profit Factor": round(profit_factor, 2)
+        if np.isfinite(profit_factor) else "No Losses",
+        "Average Return %": round(
+            returns.mean(), 2
+        ),
+        "Average Win %": round(
+            wins.mean(), 2
+        ) if len(wins) else 0,
+        "Average Loss %": round(
+            losses.mean(), 2
+        ) if len(losses) else 0,
+        "Max Drawdown %": round(
+            drawdown.min(), 2
+        ),
+        "Total Return %": round(
+            (equity.iloc[-1] - 1) * 100, 2
         )
     }
 
@@ -457,16 +504,17 @@ def backtest(df, cost_percent):
 if st.button("SCAN STOCKS", type="primary"):
 
     if min_price >= max_price:
-        st.error("Maximum price must be greater than minimum price.")
+        st.error("Maximum price must exceed minimum price.")
 
     elif not symbols:
-        st.error("Please enter at least one NSE symbol.")
+        st.error("Please enter NSE symbols.")
 
     else:
 
         results = []
         errors = []
-        backtest_results = []
+        all_trades = []
+        stock_reports = []
 
         progress = st.progress(0)
         message = st.empty()
@@ -478,29 +526,55 @@ if st.button("SCAN STOCKS", type="primary"):
             )
 
             try:
-                result, stock_df, status = analyze_stock(symbol)
 
-                if result is not None:
+                raw = download_stock(symbol)
 
-                    if min_price <= result["Price ₹"] <= max_price:
-                        results.append(result)
-
-                        bt = backtest(
-                            stock_df,
-                            trading_cost
-                        )
-
-                        if bt is not None:
-                            bt["Stock"] = result["Stock"]
-                            backtest_results.append(bt)
-
-                else:
+                if raw is None or len(raw) < 30:
                     errors.append({
                         "Stock": symbol,
-                        "Reason": status
+                        "Reason": "Insufficient data"
                     })
 
+                else:
+
+                    prepared = calculate_indicators(raw)
+
+                    result = analyze_stock(
+                        symbol,
+                        raw
+                    )
+
+                    if result is not None:
+
+                        if min_price <= result["Price ₹"] <= max_price:
+                            results.append(result)
+
+                    trades = run_backtest(
+                        prepared,
+                        trading_cost,
+                        holding_days
+                    )
+
+                    if trades:
+
+                        for trade in trades:
+                            trade["Stock"] = symbol.replace(
+                                ".NS", ""
+                            )
+
+                        all_trades.extend(trades)
+
+                        metrics = calculate_metrics(trades)
+
+                        if metrics:
+                            metrics["Stock"] = symbol.replace(
+                                ".NS", ""
+                            )
+
+                            stock_reports.append(metrics)
+
             except Exception as e:
+
                 errors.append({
                     "Stock": symbol,
                     "Reason": str(e)[:100]
@@ -533,16 +607,21 @@ if st.button("SCAN STOCKS", type="primary"):
 
             st.download_button(
                 "Download Scan CSV",
-                df_result.to_csv(index=False).encode("utf-8"),
+                df_result.to_csv(
+                    index=False
+                ).encode("utf-8"),
                 file_name=f"SSA_{date.today()}.csv",
                 mime="text/csv"
             )
 
             history = df_result.copy()
+
             history.insert(
                 0,
                 "Scan Time",
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
             )
 
             st.session_state.scan_history = pd.concat(
@@ -553,29 +632,115 @@ if st.button("SCAN STOCKS", type="primary"):
                 ignore_index=True
             )
 
-            if backtest_results:
+        else:
+            st.warning(
+                "No stocks matched your price filter."
+            )
 
-                st.subheader("Historical Backtesting")
+        # Advanced backtesting report.
+        st.divider()
+        st.header("📈 Advanced Historical Backtesting")
 
-                bt_df = pd.DataFrame(backtest_results)
+        if all_trades:
+
+            overall = calculate_metrics(all_trades)
+
+            st.subheader("Overall Strategy Performance")
+
+            c1, c2, c3, c4 = st.columns(4)
+
+            c1.metric(
+                "Total Trades",
+                overall["Trades"]
+            )
+
+            c2.metric(
+                "Win Rate",
+                f'{overall["Win Rate %"]}%'
+            )
+
+            c3.metric(
+                "Profit Factor",
+                overall["Profit Factor"]
+            )
+
+            c4.metric(
+                "Max Drawdown",
+                f'{overall["Max Drawdown %"]}%'
+            )
+
+            c5, c6, c7 = st.columns(3)
+
+            c5.metric(
+                "Average Return",
+                f'{overall["Average Return %"]}%'
+            )
+
+            c6.metric(
+                "Average Win",
+                f'{overall["Average Win %"]}%'
+            )
+
+            c7.metric(
+                "Average Loss",
+                f'{overall["Average Loss %"]}%'
+            )
+
+            st.metric(
+                "Compounded Strategy Return",
+                f'{overall["Total Return %"]}%'
+            )
+
+            st.subheader("Stock-wise Backtest Report")
+
+            report_df = pd.DataFrame(stock_reports)
+
+            if not report_df.empty:
+
+                report_df = report_df.sort_values(
+                    "Win Rate %",
+                    ascending=False
+                )
 
                 st.dataframe(
-                    bt_df,
+                    report_df,
                     use_container_width=True,
                     hide_index=True
                 )
 
-                st.caption(
-                    "Backtest uses historical daily candles, "
-                    "next-day open entry, 2 ATR target, "
-                    "1.5 ATR stop and maximum 10-day holding. "
-                    "If stop and target are both touched on one candle, "
-                    "stop is assumed first. Results are not a prediction."
+                st.download_button(
+                    "Download Backtest Report",
+                    report_df.to_csv(
+                        index=False
+                    ).encode("utf-8"),
+                    file_name="SSA_Backtest_Report.csv",
+                    mime="text/csv"
                 )
 
+            trade_df = pd.DataFrame(all_trades)
+
+            st.subheader("Historical Trade Records")
+
+            st.dataframe(
+                trade_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+            st.download_button(
+                "Download All Historical Trades",
+                trade_df.to_csv(
+                    index=False
+                ).encode("utf-8"),
+                file_name="SSA_Historical_Trades.csv",
+                mime="text/csv"
+            )
+
         else:
+
             st.warning(
-                "No stocks matched the price range or data was unavailable."
+                "Not enough historical data or no qualifying "
+                "BUY WATCH trades found for backtesting."
             )
 
         with st.expander("Data Fetch Diagnostics"):
@@ -590,10 +755,12 @@ if st.button("SCAN STOCKS", type="primary"):
                 st.write("No data errors recorded.")
 
         st.info(
-            "Entry, Stop Loss and Targets are illustrative ATR-based "
-            "daily reference levels. Backtesting is historical and "
-            "does not guarantee future performance. "
-            "Daily Swing screening only; no 5-minute Intraday signals."
+            "Backtest rules: BUY WATCH score >= 5; "
+            "next-day Open entry; 1.5 ATR stop; "
+            "2 ATR target; maximum holding period as selected. "
+            "If stop and target are touched on the same candle, "
+            "stop is assumed first. One open trade per stock. "
+            "Costs are estimated, not actual broker charges."
         )
 
 
@@ -619,8 +786,8 @@ if not st.session_state.scan_history.empty:
     )
 
 else:
-    st.write("No scan history in this session yet.")
+    st.write("No scan history in this session.")
 
 st.caption(
-    "SSA v0.3 | Daily Technical Screening | Manual Trading Only"
+    "SSA v0.4 | Advanced Backtesting | Manual Trading Only"
 )
