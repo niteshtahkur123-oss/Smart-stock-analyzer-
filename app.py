@@ -432,9 +432,8 @@ def run_backtest(df, cost, max_days, symbol=""):
             "Entry Date": str(
                 df.index[entry_index].date()
             ),
-            "Exit Date": str(
-                df.index[exit_index].date()
-            "Entry ₹": round(entry, 2),
+            "Exit Date": str(df.index[exit_index].date()),
+"Entry ₹": round(entry, 2),
             "Stock": symbol,
 "Stop ₹": round(stop, 2),
             "Exit ₹": round(exit_price, 2),
