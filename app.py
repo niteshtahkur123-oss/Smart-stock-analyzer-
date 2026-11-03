@@ -11,8 +11,7 @@ st.set_page_config(
 )
 
 st.title("📊 Smart Stock Analyzer")
-st.caption("SSA Version 0.4 | Advanced Swing Analysis")
-
+"SSA v0.5 | Portfolio Backtesting | Manual Trading Only"
 st.warning(
     "Yahoo Finance data may be delayed or unavailable. "
     "Verify prices with your broker. Historical results "
