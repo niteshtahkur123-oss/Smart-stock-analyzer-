@@ -838,7 +838,7 @@ if st.button("SCAN STOCKS", type="primary"):
                         # Advanced backtesting report
         st.divider()
         st.header("📈 Advanced Historical Backtesting")
-
+        
         if all_trades:
 
             portfolio_trades, overall = simulate_portfolio(
@@ -858,8 +858,6 @@ if st.button("SCAN STOCKS", type="primary"):
             c3.metric("Profit Factor", overall["Profit Factor"])
             c4.metric("Max Drawdown", overall["Max Drawdown"])
 
-        else:
-            st.info("No historical trades available for backtesting.")
             c5, c6, c7 = st.columns(3)
 
             c5.metric(
@@ -923,12 +921,13 @@ if st.button("SCAN STOCKS", type="primary"):
                 mime="text/csv"
             )
 
-                else:
+        else:
 
             st.warning(
                 "Not enough historical data or no qualifying "
                 "BUY WATCH trades found for backtesting."
-)
+            )
+
         with st.expander("Data Fetch Diagnostics"):
 
             if errors:
