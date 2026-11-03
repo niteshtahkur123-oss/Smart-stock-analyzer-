@@ -604,6 +604,101 @@ def simulate_portfolio(
         position = {
             "Stock": trade["Stock"],
             "Entry Date": entry_date.date(),
+def simulate_portfolio(
+    trades,
+    initial_capital=10000,
+    risk_pct=1.0,
+    max_positions=5,
+    allocation_pct=20.0
+):
+    if not trades:
+        return [], {}
+
+    candidates = pd.DataFrame(trades).copy()
+
+    required = [
+        "Stock", "Entry Date", "Exit Date",
+        "Entry ₹", "Exit ₹", "Stop ₹",
+        "Return %", "Exit Reason"
+    ]
+
+    if not all(col in candidates.columns for col in required):
+        raise ValueError(
+            "Portfolio backtest: required trade fields missing."
+        )
+
+    candidates["Entry Date"] = pd.to_datetime(
+        candidates["Entry Date"]
+    )
+    candidates["Exit Date"] = pd.to_datetime(
+        candidates["Exit Date"]
+    )
+
+    candidates = candidates.sort_values(
+        ["Entry Date", "Stock"]
+    ).reset_index(drop=True)
+
+    cash = float(initial_capital)
+    equity = float(initial_capital)
+
+    open_positions = []
+    completed = []
+
+    for _, trade in candidates.iterrows():
+
+        entry_date = trade["Entry Date"]
+
+        # पहले पुराने positions close करें.
+        remaining = []
+
+        for pos in open_positions:
+
+            if pos["Exit Date"] <= entry_date:
+
+                cash += pos["Invested ₹"] + pos["P&L ₹"]
+                equity += pos["P&L ₹"]
+                completed.append(pos)
+
+            else:
+                remaining.append(pos)
+
+        open_positions = remaining
+
+        if len(open_positions) >= max_positions:
+            continue
+
+        entry = float(trade["Entry ₹"])
+        exit_price = float(trade["Exit ₹"])
+        stop = float(trade["Stop ₹"])
+        net_return = float(trade["Return %"])
+
+        if entry <= 0 or stop <= 0 or stop >= entry:
+            continue
+
+        risk_per_share = entry - stop
+
+        risk_amount = equity * risk_pct / 100
+        allocation_limit = equity * allocation_pct / 100
+
+        qty_risk = int(risk_amount / risk_per_share)
+        qty_allocation = int(allocation_limit / entry)
+        qty_cash = int(cash / entry)
+
+        quantity = min(
+            qty_risk,
+            qty_allocation,
+            qty_cash
+        )
+
+        if quantity <= 0:
+            continue
+
+        invested = quantity * entry
+        pnl = invested * net_return / 100
+
+        position = {
+            "Stock": trade["Stock"],
+            "Entry Date": entry_date.date(),
             "Exit Date": trade["Exit Date"].date(),
             "Entry ₹": round(entry, 2),
             "Exit ₹": round(exit_price, 2),
@@ -618,13 +713,13 @@ def simulate_portfolio(
         cash -= invested
         open_positions.append(position)
 
-    # Close remaining positions
+    # बाकी सभी open positions close करें.
     for pos in sorted(
         open_positions,
         key=lambda x: x["Exit Date"]
     ):
         cash += pos["Invested ₹"] + pos["P&L ₹"]
-equity += pos["P&L ₹"]
+        equity += pos["P&L ₹"]
         completed.append(pos)
 
     result = pd.DataFrame(completed)
@@ -640,10 +735,12 @@ equity += pos["P&L ₹"]
         initial_capital + result["P&L ₹"].cumsum()
     )
 
-    peak = result["Equity ₹"].cummax()
+    peak = result["Equity ₹"].cummax().clip(
+        lower=initial_capital
+    )
 
     drawdown = (
-        (result["Equity ₹"] / peak) - 1
+        result["Equity ₹"] / peak - 1
     ) * 100
 
     wins = result.loc[
@@ -656,26 +753,23 @@ equity += pos["P&L ₹"]
         ].sum()
     )
 
+    final_equity = initial_capital + result["P&L ₹"].sum()
+
     metrics = {
         "Trades": len(result),
-
         "Win Rate %": round(
             (result["P&L ₹"] > 0).mean() * 100, 1
         ),
-
         "Profit Factor": round(
             wins / losses, 2
         ) if losses > 0 else "No Losses",
-
         "Max Drawdown %": round(
             drawdown.min(), 2
         ),
-
         "Total Return %": round(
-            (equity / initial_capital - 1) * 100, 2
+            (final_equity / initial_capital - 1) * 100, 2
         ),
-
-        "Final Equity ₹": round(equity, 2)
+        "Final Equity ₹": round(final_equity, 2)
     }
 
     return result.to_dict("records"), metrics
