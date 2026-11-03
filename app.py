@@ -858,8 +858,8 @@ if st.button("SCAN STOCKS", type="primary"):
             c3.metric("Profit Factor", overall["Profit Factor"])
             c4.metric(
     "Max Drawdown",
-    f'{overall.get("Max Drawdown %", overall.get("Max Drawdown", 0))}%'
-            )
+    f'{overall["Max Drawdown %"]}%'
+)
 
             c5, c6, c7 = st.columns(3)
 
