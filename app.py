@@ -729,10 +729,11 @@ if st.button("SCAN STOCKS", type="primary"):
                             results.append(result)
 
                     trades = run_backtest(
-                        prepared,
-                        trading_cost,
-                        holding_days
-                    )
+    prepared,
+    trading_cost,
+    holding_days,
+    symbol.replace(".NS", "")
+)
 
                     if trades:
 
