@@ -624,7 +624,7 @@ def simulate_portfolio(
         key=lambda x: x["Exit Date"]
     ):
         cash += pos["Invested ₹"] + pos["P&L ₹"]
-        equity += pos["P&L ₹"]
+equity += pos["P&L ₹"]
         completed.append(pos)
 
     result = pd.DataFrame(completed)
