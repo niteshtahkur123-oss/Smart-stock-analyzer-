@@ -923,19 +923,12 @@ if st.button("SCAN STOCKS", type="primary"):
                 mime="text/csv"
             )
 
-        else:
+                else:
 
             st.warning(
                 "Not enough historical data or no qualifying "
                 "BUY WATCH trades found for backtesting."
-            )
-        else:
-
-            st.warning(
-                "Not enough historical data or no qualifying "
-                "BUY WATCH trades found for backtesting."
-            )
-
+)
         with st.expander("Data Fetch Diagnostics"):
 
             if errors:
