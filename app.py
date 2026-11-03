@@ -679,7 +679,37 @@ equity += pos["P&L ₹"]
     }
 
     return result.to_dict("records"), metrics
+st.subheader("Portfolio Backtest Settings")
 
+initial_capital = st.number_input(
+    "Starting Capital (₹)",
+    min_value=1000,
+    value=10000,
+    step=1000
+)
+
+risk_pct = st.number_input(
+    "Risk per Trade (%)",
+    min_value=0.1,
+    max_value=5.0,
+    value=1.0,
+    step=0.1
+)
+
+max_positions = st.number_input(
+    "Maximum Open Positions",
+    min_value=1,
+    max_value=20,
+    value=5
+)
+
+allocation_pct = st.number_input(
+    "Maximum Allocation per Stock (%)",
+    min_value=5.0,
+    max_value=100.0,
+    value=20.0,
+    step=5.0
+    )
 if st.button("SCAN STOCKS", type="primary"):
 
     if min_price >= max_price:
