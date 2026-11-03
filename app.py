@@ -354,7 +354,7 @@ def analyze_stock(symbol, df):
     }
 
 
-def run_backtest(df, cost, max_days):
+def run_backtest(df, cost, max_days, symbol=""):
 
     trades = []
 
@@ -437,7 +437,8 @@ def run_backtest(df, cost, max_days):
                 df.index[exit_index].date()
             ),
             ""Entry ₹": round(entry, 2),
-            "Stop ₹": round(stop, 2),
+            "Stock": symbol,
+"Stop ₹": round(stop, 2),
             "Exit ₹": round(exit_price, 2),
             "Exit Reason": exit_reason,
             "Return %": round(net_return, 2)
@@ -713,7 +714,7 @@ def simulate_portfolio(
         cash -= invested
         open_positions.append(position)
 
-    # बाकी सभी open positions close करें.
+
     for pos in sorted(
         open_positions,
         key=lambda x: x["Exit Date"]
