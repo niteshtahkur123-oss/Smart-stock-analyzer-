@@ -547,7 +547,7 @@ def simulate_portfolio(
 
         for pos in open_positions:
 
-            if pos["Exit Date"] <= entry_date:
+            if pd.Timestamp(pos["Exit Date"]).date() <= pd.Timestamp(entry_date).date():
 
                 cash += pos["Invested ₹"] + pos["P&L ₹"]
                 equity += pos["P&L ₹"]
