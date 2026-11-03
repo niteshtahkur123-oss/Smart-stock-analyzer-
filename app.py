@@ -853,7 +853,13 @@ if st.button("SCAN STOCKS", type="primary"):
 
         if all_trades:
 
-            overall = calculate_metrics(all_trades)
+            portfolio_trades, overall = simulate_portfolio(
+    all_trades,
+    initial_capital=initial_capital,
+    risk_pct=risk_pct,
+    max_positions=max_positions,
+    allocation_pct=allocation_pct
+)
 
             st.subheader("Overall Strategy Performance")
 
@@ -881,20 +887,27 @@ if st.button("SCAN STOCKS", type="primary"):
 
             c5, c6, c7 = st.columns(3)
 
-            c5.metric(
-                "Average Return",
-                f'{overall["Average Return %"]}%'
-            )
+            c5, c6, c7 = st.columns(3)
 
-            c6.metric(
-                "Average Win",
-                f'{overall["Average Win %"]}%'
-            )
+c5.metric(
+    "Starting Capital",
+    f'₹{initial_capital:,.0f}'
+)
 
-            c7.metric(
-                "Average Loss",
-                f'{overall["Average Loss %"]}%'
-            )
+c6.metric(
+    "Final Capital",
+    f'₹{overall["Final Equity ₹"]:,.2f}'
+)
+
+c7.metric(
+    "Net Profit / Loss",
+    f'₹{overall["Final Equity ₹"] - initial_capital:,.2f}'
+)
+
+st.metric(
+    "Portfolio Return",
+    f'{overall["Total Return %"]}%'
+)
 
             st.metric(
                 "Compounded Strategy Return",
@@ -927,7 +940,7 @@ if st.button("SCAN STOCKS", type="primary"):
                     mime="text/csv"
                 )
 
-            trade_df = pd.DataFrame(all_trades)
+            trade_df = pd.DataFrame(portfolio_trades)
 
             st.subheader("Historical Trade Records")
 
