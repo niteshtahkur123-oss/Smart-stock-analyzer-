@@ -838,67 +838,44 @@ if st.button("SCAN STOCKS", type="primary"):
         # Advanced backtesting report.
         st.divider()
         st.header("📈 Advanced Historical Backtesting")
-
-        if all_trades:
+                if all_trades:
 
             portfolio_trades, overall = simulate_portfolio(
-    all_trades,
-    initial_capital=initial_capital,
-    risk_pct=risk_pct,
-    max_positions=max_positions,
-    allocation_pct=allocation_pct
-)
+                all_trades,
+                initial_capital=initial_capital,
+                risk_pct=risk_pct,
+                max_positions=max_positions,
+                allocation_pct=allocation_pct
+            )
 
             st.subheader("Overall Strategy Performance")
 
             c1, c2, c3, c4 = st.columns(4)
 
-            c1.metric(
-                "Total Trades",
-                overall["Trades"]
-            )
-
-            c2.metric(
-                "Win Rate",
-                f'{overall["Win Rate %"]}%'
-            )
-
-            c3.metric(
-                "Profit Factor",
-                overall["Profit Factor"]
-            )
-
-            c4.metric(
-                "Max Drawdown",
-                f'{overall["Max Drawdown %"]}%'
-            )
+            c1.metric("Total Trades", overall["Trades"])
+            c2.metric("Win Rate", f'{overall["Win Rate %"]}%')
+            c3.metric("Profit Factor", overall["Profit Factor"])
+            c4.metric("Max Drawdown", f'{overall["Max Drawdown %"]}%')
 
             c5, c6, c7 = st.columns(3)
 
-            c5, c6, c7 = st.columns(3)
+            c5.metric(
+                "Starting Capital",
+                f'₹{initial_capital:,.0f}'
+            )
 
-c5.metric(
-    "Starting Capital",
-    f'₹{initial_capital:,.0f}'
-)
+            c6.metric(
+                "Final Capital",
+                f'₹{overall["Final Equity ₹"]:,.2f}'
+            )
 
-c6.metric(
-    "Final Capital",
-    f'₹{overall["Final Equity ₹"]:,.2f}'
-)
-
-c7.metric(
-    "Net Profit / Loss",
-    f'₹{overall["Final Equity ₹"] - initial_capital:,.2f}'
-)
-
-st.metric(
-    "Portfolio Return",
-    f'{overall["Total Return %"]}%'
-)
+            c7.metric(
+                "Net Profit / Loss",
+                f'₹{overall["Final Equity ₹"] - initial_capital:,.2f}'
+            )
 
             st.metric(
-                "Compounded Strategy Return",
+                "Portfolio Return",
                 f'{overall["Total Return %"]}%'
             )
 
@@ -921,9 +898,7 @@ st.metric(
 
                 st.download_button(
                     "Download Backtest Report",
-                    report_df.to_csv(
-                        index=False
-                    ).encode("utf-8"),
+                    report_df.to_csv(index=False).encode("utf-8"),
                     file_name="SSA_Backtest_Report.csv",
                     mime="text/csv"
                 )
@@ -940,13 +915,17 @@ st.metric(
 
             st.download_button(
                 "Download All Historical Trades",
-                trade_df.to_csv(
-                    index=False
-                ).encode("utf-8"),
+                trade_df.to_csv(index=False).encode("utf-8"),
                 file_name="SSA_Historical_Trades.csv",
                 mime="text/csv"
             )
 
+        else:
+
+            st.warning(
+                "Not enough historical data or no qualifying "
+                "BUY WATCH trades found for backtesting."
+            )
         else:
 
             st.warning(
