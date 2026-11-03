@@ -434,8 +434,7 @@ def run_backtest(df, cost, max_days, symbol=""):
             ),
             "Exit Date": str(
                 df.index[exit_index].date()
-            ),
-            ""Entry ₹": round(entry, 2),
+            "Entry ₹": round(entry, 2),
             "Stock": symbol,
 "Stop ₹": round(stop, 2),
             "Exit ₹": round(exit_price, 2),
@@ -701,11 +700,11 @@ def simulate_portfolio(
             "Entry Date": entry_date.date(),
             "Exit Date": trade["Exit Date"].date(),
             "Entry ₹": round(entry, 2),
-            "Exit ₹": round(exit_price, 2),
-            "Stop ₹": round(stop, 2),
-            "Quantity": quantity,
-            "Invested ₹": round(invested, 2),
-            "P&L ₹": round(pnl, 2),
+"Exit ₹": round(exit_price, 2),
+"Stop ₹": round(stop, 2),
+"Quantity": quantity,
+"Invested ₹": round(invested, 2),
+"P&L ₹": round(pnl, 2),
             "Return %": round(net_return, 2),
             "Exit Reason": trade["Exit Reason"]
         }
