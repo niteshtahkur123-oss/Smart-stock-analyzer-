@@ -500,7 +500,185 @@ def calculate_metrics(trades):
             (equity.iloc[-1] - 1) * 100, 2
         )
     }
+def simulate_portfolio(
+    trades,
+    initial_capital=100000,
+    risk_pct=1.0,
+    max_positions=5,
+    allocation_pct=20.0
+):
+    if not trades:
+        return [], {}
 
+    candidates = pd.DataFrame(trades).copy()
+
+    required = [
+        "Stock", "Entry Date", "Exit Date",
+        "Entry ₹", "Exit ₹", "Stop ₹", "Return %"
+    ]
+
+    if not all(col in candidates.columns for col in required):
+        raise ValueError(
+            "Portfolio backtest: required trade fields missing."
+        )
+
+    candidates["Entry Date"] = pd.to_datetime(
+        candidates["Entry Date"]
+    )
+    candidates["Exit Date"] = pd.to_datetime(
+        candidates["Exit Date"]
+    )
+
+    candidates = candidates.sort_values(
+        ["Entry Date", "Stock"]
+    ).reset_index(drop=True)
+
+    cash = float(initial_capital)
+    equity = float(initial_capital)
+
+    open_positions = []
+    completed = []
+
+    for _, trade in candidates.iterrows():
+
+        entry_date = trade["Entry Date"]
+
+        # Close positions whose exit date has arrived
+        still_open = []
+
+        for pos in open_positions:
+            if pos["Exit Date"] <= entry_date:
+                cash += pos["Invested"] + pos["P&L"]
+                equity += pos["P&L"]
+                completed.append(pos)
+            else:
+                still_open.append(pos)
+
+        open_positions = still_open
+
+        if len(open_positions) >= max_positions:
+            continue
+
+        # Avoid overlapping positions in same stock
+        if any(
+            pos["Stock"] == trade["Stock"]
+            for pos in open_positions
+        ):
+            continue
+
+        entry = float(trade["Entry ₹"])
+        exit_price = float(trade["Exit ₹"])
+        stop = float(trade["Stop ₹"])
+        net_return = float(trade["Return %"])
+
+        if entry <= 0 or stop <= 0 or entry <= stop:
+            continue
+
+        risk_per_share = entry - stop
+
+        risk_amount = equity * (risk_pct / 100)
+        allocation_limit = equity * (allocation_pct / 100)
+
+        quantity_by_risk = int(
+            risk_amount / risk_per_share
+        )
+
+        quantity_by_allocation = int(
+            allocation_limit / entry
+        )
+
+        quantity_by_cash = int(cash / entry)
+
+        quantity = min(
+            quantity_by_risk,
+            quantity_by_allocation,
+            quantity_by_cash
+        )
+
+        if quantity <= 0:
+            continue
+
+        invested = quantity * entry
+        pnl = invested * (net_return / 100)
+
+        position = {
+            "Stock": trade["Stock"],
+            "Entry Date": entry_date.date(),
+            "Exit Date": trade["Exit Date"].date(),
+            "Entry ₹": round(entry, 2),
+            "Exit ₹": round(exit_price, 2),
+            "Stop ₹": round(stop, 2),
+            "Quantity": quantity,
+            "Invested ₹": round(invested, 2),
+            "P&L ₹": round(pnl, 2),
+            "Return %": round(net_return, 2),
+            "Exit Reason": trade["Exit Reason"]
+        }
+
+        cash -= invested
+        open_positions.append(position)
+
+    # Close remaining positions
+    for pos in sorted(
+        open_positions,
+        key=lambda x: x["Exit Date"]
+    ):
+        cash += pos["Invested ₹"] + pos["P&L ₹"]
+        equity += pos["P&L ₹"]
+        completed.append(pos)
+
+    result = pd.DataFrame(completed)
+
+    if result.empty:
+        return [], {}
+
+    result = result.sort_values(
+        ["Exit Date", "Entry Date", "Stock"]
+    ).reset_index(drop=True)
+
+    result["Equity ₹"] = (
+        initial_capital + result["P&L ₹"].cumsum()
+    )
+
+    peak = result["Equity ₹"].cummax()
+
+    drawdown = (
+        (result["Equity ₹"] / peak) - 1
+    ) * 100
+
+    wins = result.loc[
+        result["P&L ₹"] > 0, "P&L ₹"
+    ].sum()
+
+    losses = abs(
+        result.loc[
+            result["P&L ₹"] <= 0, "P&L ₹"
+        ].sum()
+    )
+
+    metrics = {
+        "Trades": len(result),
+
+        "Win Rate %": round(
+            (result["P&L ₹"] > 0).mean() * 100, 1
+        ),
+
+        "Profit Factor": round(
+            wins / losses, 2
+        ) if losses > 0 else "No Losses",
+
+        "Max Drawdown %": round(
+            drawdown.min(), 2
+        ),
+
+        "Total Return %": round(
+            (equity / initial_capital - 1) * 100, 2
+        ),
+
+        "Final Equity ₹": round(equity, 2)
+    }
+
+    return result.to_dict("records"), metrics
 
 if st.button("SCAN STOCKS", type="primary"):
 
