@@ -709,7 +709,7 @@ def simulate_portfolio(
     result["Entry Date"] = result["Entry Date"].dt.date
     result["Exit Date"] = result["Exit Date"].dt.date
 
-    return result.to_dict("records"), metrice
+    return result.to_dict("records"), metrics
     for pos in sorted(
         open_positions,
         key=lambda x: x["Exit Date"]
