@@ -601,8 +601,10 @@ def simulate_portfolio(
         if len(open_positions) >= max_positions:
             continue
 
-        risk_per_share = entry - stop
-
+        risk_per_share = (
+    entry - stop
+    + entry * trading_cost_pct / 100
+)
         risk_amount = equity * risk_pct / 100
         allocation_limit = equity * allocation_pct / 100
 
