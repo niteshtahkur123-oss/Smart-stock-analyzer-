@@ -524,12 +524,17 @@ def simulate_portfolio(
     initial_capital = float(initial_capital)
     risk_pct = float(risk_pct)
     allocation_pct = float(allocation_pct)
+    trading_cost_pct = float(trading_cost_pct)
     max_positions = int(max_positions)
 
     if initial_capital <= 0 or risk_pct <= 0:
         raise ValueError("Capital and risk must be positive.")
 
-    if max_positions < 1 or not 0 < allocation_pct <= 100:
+    if (
+        max_positions < 1
+        or not 0 < allocation_pct <= 100
+        or trading_cost_pct < 0
+    ):
         raise ValueError("Invalid portfolio settings.")
 
     candidates["Entry Date"] = pd.to_datetime(
@@ -578,23 +583,21 @@ def simulate_portfolio(
         ):
             continue
 
-        # Close all positions whose exit date has arrived.
+        # Release capital from previously exited positions.
         remaining = []
 
         for pos in open_positions:
 
             if pos["Exit Date"] < entry_date:
-
                 cash += pos["Invested ₹"] + pos["P&L ₹"]
                 equity += pos["P&L ₹"]
                 completed.append(pos)
-
             else:
                 remaining.append(pos)
 
         open_positions = remaining
 
-        # Do not allow overlapping trades in the same stock.
+        # Avoid overlapping trades in the same stock.
         if any(pos["Stock"] == stock for pos in open_positions):
             continue
 
@@ -602,9 +605,13 @@ def simulate_portfolio(
             continue
 
         risk_per_share = (
-    entry - stop
-    + entry * trading_cost_pct / 100
-)
+            entry - stop
+            + entry * trading_cost_pct / 100
+        )
+
+        if risk_per_share <= 0:
+            continue
+
         risk_amount = equity * risk_pct / 100
         allocation_limit = equity * allocation_pct / 100
 
@@ -641,7 +648,7 @@ def simulate_portfolio(
         cash -= invested
         open_positions.append(position)
 
-    # Close remaining positions in exit-date order.
+    # Close all remaining positions.
     for pos in sorted(
         open_positions,
         key=lambda x: (x["Exit Date"], x["Stock"])
@@ -659,7 +666,7 @@ def simulate_portfolio(
         ["Exit Date", "Entry Date", "Stock"]
     ).reset_index(drop=True)
 
-    # Aggregate all exits on the same date.
+    # Calculate realized daily equity and drawdown.
     daily_pnl = result.groupby("Exit Date")["P&L ₹"].sum()
 
     daily_equity = initial_capital + daily_pnl.cumsum()
@@ -708,71 +715,10 @@ def simulate_portfolio(
         "Final Equity ₹": round(final_equity, 2)
     }
 
-    # Convert dates for display and CSV.
     result["Entry Date"] = result["Entry Date"].dt.date
     result["Exit Date"] = result["Exit Date"].dt.date
 
     return result.to_dict("records"), metrics
-    for pos in sorted(
-        open_positions,
-        key=lambda x: x["Exit Date"]
-    ):
-        cash += pos["Invested ₹"] + pos["P&L ₹"]
-        equity += pos["P&L ₹"]
-        completed.append(pos)
-
-    result = pd.DataFrame(completed)
-
-    if result.empty:
-        return [], {}
-
-    result = result.sort_values(
-        ["Exit Date", "Entry Date", "Stock"]
-    ).reset_index(drop=True)
-
-    result["Equity ₹"] = (
-        initial_capital + result["P&L ₹"].cumsum()
-    )
-
-    peak = result["Equity ₹"].cummax().clip(
-        lower=initial_capital
-    )
-
-    drawdown = (
-        result["Equity ₹"] / peak - 1
-    ) * 100
-
-    wins = result.loc[
-        result["P&L ₹"] > 0, "P&L ₹"
-    ].sum()
-
-    losses = abs(
-        result.loc[
-            result["P&L ₹"] <= 0, "P&L ₹"
-        ].sum()
-    )
-
-    final_equity = initial_capital + result["P&L ₹"].sum()
-
-    metrics = {
-        "Trades": len(result),
-        "Win Rate %": round(
-            (result["P&L ₹"] > 0).mean() * 100, 1
-        ),
-        "Profit Factor": round(
-            wins / losses, 2
-        ) if losses > 0 else "No Losses",
-        "Max Drawdown %": round(
-            drawdown.min(), 2
-        ),
-        "Total Return %": round(
-            (final_equity / initial_capital - 1) * 100, 2
-        ),
-        "Final Equity ₹": round(final_equity, 2)
-    }
-
-    return result.to_dict("records"), metrics
-st.subheader("Portfolio Backtest Settings")
 
 initial_capital = st.number_input(
     "Starting Capital (₹)",
