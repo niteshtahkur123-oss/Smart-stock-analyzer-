@@ -835,10 +835,10 @@ if st.button("SCAN STOCKS", type="primary"):
                 "No stocks matched your price filter."
             )
 
-                        # Advanced backtesting report
+                                        # Advanced backtesting report
         st.divider()
         st.header("📈 Advanced Historical Backtesting")
-        
+
         if all_trades:
 
             portfolio_trades, overall = simulate_portfolio(
@@ -857,9 +857,19 @@ if st.button("SCAN STOCKS", type="primary"):
             c2.metric("Win Rate", f'{overall["Win Rate %"]}%')
             c3.metric("Profit Factor", overall["Profit Factor"])
             c4.metric(
-    "Max Drawdown",
-    f'{overall["Max Drawdown %"]}%'
-)
+                "Max Drawdown",
+                f'{overall["Max Drawdown %"]}%'
+            )
+
+            c5, c6, c7 = st.columns(3)
+
+            c1.metric("Total Trades", overall["Trades"])
+            c2.metric("Win Rate", f'{overall["Win Rate %"]}%')
+            c3.metric("Profit Factor", overall["Profit Factor"])
+            c4.metric(
+                "Max Drawdown",
+                f'{overall["Max Drawdown %"]}%'
+            )
 
             c5, c6, c7 = st.columns(3)
 
