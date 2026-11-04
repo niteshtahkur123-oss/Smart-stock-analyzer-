@@ -824,16 +824,6 @@ def simulate_portfolio(
         pnl = invested * net_return / 100
 
         position = {
-            "Stock": stock,
-            "Entry Date": entry_date,
-            "Exit Date": trade["Exit Date"],
-            "Entry ₹": round(entry, 2),
-            "Exit ₹": round(exit_price, 2
-
-        invested = quantity * entry
-        pnl = invested * net_return / 100
-
-        position = {
             "Stock": trade["Stock"],
             "Entry Date": entry_date.date(),
             "Exit Date": trade["Exit Date"].date(),
