@@ -820,13 +820,16 @@ def simulate_portfolio(
 
     return result.to_dict("records"), metrics
 
+                if quantity <= 0:
+            continue
+
         invested = quantity * entry
         pnl = invested * net_return / 100
 
         position = {
-            "Stock": trade["Stock"],
-            "Entry Date": entry_date.date(),
-            "Exit Date": trade["Exit Date"].date(),
+            "Stock": stock,
+            "Entry Date": entry_date,
+            "Exit Date": trade["Exit Date"],
             "Entry ₹": round(entry, 2),
 "Exit ₹": round(exit_price, 2),
 "Stop ₹": round(stop, 2),
