@@ -835,7 +835,7 @@ if st.button("SCAN STOCKS", type="primary"):
                 "No stocks matched your price filter."
             )
 
-                                        # Advanced backtesting report
+        # Advanced backtesting report
         st.divider()
         st.header("📈 Advanced Historical Backtesting")
 
@@ -849,7 +849,7 @@ if st.button("SCAN STOCKS", type="primary"):
                 allocation_pct=allocation_pct
             )
 
-                        st.subheader("Overall Strategy Performance")
+            st.subheader("Overall Strategy Performance")
 
             c1, c2, c3, c4 = st.columns(4)
 
@@ -860,30 +860,18 @@ if st.button("SCAN STOCKS", type="primary"):
 
             c5, c6, c7 = st.columns(3)
 
-            c5.metric(
-                "Starting Capital",
-                f'₹{initial_capital:,.0f}'
-            )
-
-            c6.metric(
-                "Final Capital",
-                f'₹{overall["Final Equity ₹"]:,.2f}'
-            )
-
+            c5.metric("Starting Capital", f'₹{initial_capital:,.0f}')
+            c6.metric("Final Capital", f'₹{overall["Final Equity ₹"]:,.2f}')
             c7.metric(
                 "Net Profit / Loss",
                 f'₹{overall["Final Equity ₹"] - initial_capital:,.2f}'
             )
 
-            st.metric(
-                "Portfolio Return",
-                f'{overall["Total Return %"]}%'
-            )
+            st.metric("Portfolio Return", f'{overall["Total Return %"]}%')
 
             st.subheader("Stock-wise Backtest Report")
 
             report_df = pd.DataFrame(stock_reports)
-
             if not report_df.empty:
 
                 report_df = report_df.sort_values(
