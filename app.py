@@ -709,32 +709,7 @@ def simulate_portfolio(
     result["Entry Date"] = result["Entry Date"].dt.date
     result["Exit Date"] = result["Exit Date"].dt.date
 
-    return result.to_dict("records"), metrics
-
-                if quantity <= 0:
-            continue
-
-        invested = quantity * entry
-        pnl = invested * net_return / 100
-
-        position = {
-            "Stock": stock,
-            "Entry Date": entry_date,
-            "Exit Date": trade["Exit Date"],
-            "Entry ₹": round(entry, 2),
-"Exit ₹": round(exit_price, 2),
-"Stop ₹": round(stop, 2),
-"Quantity": quantity,
-"Invested ₹": round(invested, 2),
-"P&L ₹": round(pnl, 2),
-            "Return %": round(net_return, 2),
-            "Exit Reason": trade["Exit Reason"]
-        }
-
-        cash -= invested
-        open_positions.append(position)
-
-
+    return result.to_dict("records"), metrice
     for pos in sorted(
         open_positions,
         key=lambda x: x["Exit Date"]
