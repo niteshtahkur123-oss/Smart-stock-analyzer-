@@ -849,26 +849,16 @@ if st.button("SCAN STOCKS", type="primary"):
                 allocation_pct=allocation_pct
             )
 
-            st.subheader("Overall Strategy Performance")
+                        st.subheader("Overall Strategy Performance")
 
-c1, c2, c3, c4 = st.columns(4)
-
-c1.metric("Total Trades", overall["Trades"])
-c2.metric("Win Rate", f'{overall["Win Rate %"]}%')
-c3.metric("Profit Factor", overall["Profit Factor"])
-c4.metric("Max Drawdown", f'{overall["Max Drawdown %"]}%')
-
-            c5, c6, c7 = st.columns(3)
+            c1, c2, c3, c4 = st.columns(4)
 
             c1.metric("Total Trades", overall["Trades"])
             c2.metric("Win Rate", f'{overall["Win Rate %"]}%')
             c3.metric("Profit Factor", overall["Profit Factor"])
-            c4.metric(
-                "Max Drawdown",
-                f'{overall["Max Drawdown %"]}%'
-            )
+            c4.metric("Max Drawdown", f'{overall["Max Drawdown %"]}%')
 
-                        c5, c6, c7 = st.columns(3)
+            c5, c6, c7 = st.columns(3)
 
             c5.metric(
                 "Starting Capital",
