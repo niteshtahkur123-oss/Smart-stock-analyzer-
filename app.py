@@ -868,7 +868,7 @@ c4.metric("Max Drawdown", f'{overall["Max Drawdown %"]}%')
                 f'{overall["Max Drawdown %"]}%'
             )
 
-            c5, c6, c7 = st.columns(3)
+                        c5, c6, c7 = st.columns(3)
 
             c5.metric(
                 "Starting Capital",
