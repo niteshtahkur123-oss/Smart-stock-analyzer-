@@ -608,6 +608,116 @@ def simulate_portfolio(
         qty_allocation = int(allocation_limit / entry)
         qty_cash = int(cash / entry)
 
+def simulate_portfolio(
+    trades,
+    initial_capital=10000,
+    risk_pct=1.0,
+    max_positions=5,
+    allocation_pct=20.0
+):
+    if not trades:
+        return [], {}
+
+    candidates = pd.DataFrame(trades).copy()
+
+    required = [
+        "Stock", "Entry Date", "Exit Date",
+        "Entry ₹", "Exit ₹", "Stop ₹",
+        "Return %", "Exit Reason"
+    ]
+
+    if not all(col in candidates.columns for col in required):
+        raise ValueError("Portfolio backtest: required trade fields missing.")
+
+    initial_capital = float(initial_capital)
+    risk_pct = float(risk_pct)
+    allocation_pct = float(allocation_pct)
+    max_positions = int(max_positions)
+
+    if initial_capital <= 0 or risk_pct <= 0:
+        raise ValueError("Capital and risk must be positive.")
+
+    if max_positions < 1 or not 0 < allocation_pct <= 100:
+        raise ValueError("Invalid portfolio settings.")
+
+    candidates["Entry Date"] = pd.to_datetime(
+        candidates["Entry Date"], errors="coerce"
+    )
+
+    candidates["Exit Date"] = pd.to_datetime(
+        candidates["Exit Date"], errors="coerce"
+    )
+
+    for col in ["Entry ₹", "Exit ₹", "Stop ₹", "Return %"]:
+        candidates[col] = pd.to_numeric(
+            candidates[col], errors="coerce"
+        )
+
+    candidates = candidates.dropna(
+        subset=required[:-1]
+    )
+
+    candidates = candidates.sort_values(
+        ["Entry Date", "Stock"]
+    ).reset_index(drop=True)
+
+    cash = initial_capital
+    equity = initial_capital
+
+    open_positions = []
+    completed = []
+
+    for _, trade in candidates.iterrows():
+
+        entry_date = trade["Entry Date"]
+        entry = float(trade["Entry ₹"])
+        exit_price = float(trade["Exit ₹"])
+        stop = float(trade["Stop ₹"])
+        net_return = float(trade["Return %"])
+        stock = str(trade["Stock"])
+
+        if (
+            entry <= 0
+            or exit_price <= 0
+            or stop <= 0
+            or stop >= entry
+            or trade["Exit Date"] < entry_date
+            or net_return <= -100
+        ):
+            continue
+
+        # Close all positions whose exit date has arrived.
+        remaining = []
+
+        for pos in open_positions:
+
+            if pos["Exit Date"] <= entry_date:
+
+                cash += pos["Invested ₹"] + pos["P&L ₹"]
+                equity += pos["P&L ₹"]
+                completed.append(pos)
+
+            else:
+                remaining.append(pos)
+
+        open_positions = remaining
+
+        # Do not allow overlapping trades in the same stock.
+        if any(pos["Stock"] == stock for pos in open_positions):
+            continue
+
+        if len(open_positions) >= max_positions:
+            continue
+
+        risk_per_share = entry - stop
+
+        risk_amount = equity * risk_pct / 100
+        allocation_limit = equity * allocation_pct / 100
+
+        qty_risk = int(risk_amount / risk_per_share)
+        qty_allocation = int(allocation_limit / entry)
+        qty_cash = int(cash / entry)
+
         quantity = min(
             qty_risk,
             qty_allocation,
@@ -625,7 +735,90 @@ def simulate_portfolio(
             "Entry Date": entry_date,
             "Exit Date": trade["Exit Date"],
             "Entry ₹": round(entry, 2),
-            "Exit ₹": round(exit_price, 2
+            "Exit ₹": round(exit_price, 2),
+            "Stop ₹": round(stop, 2),
+            "Quantity": quantity,
+            "Invested ₹": round(invested, 2),
+            "P&L ₹": round(pnl, 2),
+            "Return %": round(net_return, 2),
+            "Exit Reason": trade["Exit Reason"]
+        }
+
+        cash -= invested
+        open_positions.append(position)
+
+    # Close remaining positions in exit-date order.
+    for pos in sorted(
+        open_positions,
+        key=lambda x: (x["Exit Date"], x["Stock"])
+    ):
+        cash += pos["Invested ₹"] + pos["P&L ₹"]
+        equity += pos["P&L ₹"]
+        completed.append(pos)
+
+    result = pd.DataFrame(completed)
+
+    if result.empty:
+        return [], {}
+
+    result = result.sort_values(
+        ["Exit Date", "Entry Date", "Stock"]
+    ).reset_index(drop=True)
+
+    # Aggregate all exits on the same date.
+    daily_pnl = result.groupby("Exit Date")["P&L ₹"].sum()
+
+    daily_equity = initial_capital + daily_pnl.cumsum()
+
+    equity_curve = pd.Series(
+        [initial_capital] + daily_equity.tolist()
+    )
+
+    peak = equity_curve.cummax()
+
+    drawdown = (
+        equity_curve / peak - 1
+    ) * 100
+
+    wins = result.loc[
+        result["P&L ₹"] > 0, "P&L ₹"
+    ].sum()
+
+    losses = abs(
+        result.loc[
+            result["P&L ₹"] < 0, "P&L ₹"
+        ].sum()
+    )
+
+    final_equity = initial_capital + result["P&L ₹"].sum()
+
+    metrics = {
+        "Trades": len(result),
+
+        "Win Rate %": round(
+            (result["P&L ₹"] > 0).mean() * 100, 1
+        ),
+
+        "Profit Factor": round(
+            wins / losses, 2
+        ) if losses > 0 else "No Losses",
+
+        "Max Drawdown %": round(
+            drawdown.min(), 2
+        ),
+
+        "Total Return %": round(
+            (final_equity / initial_capital - 1) * 100, 2
+        ),
+
+        "Final Equity ₹": round(final_equity, 2)
+    }
+
+    # Convert dates for display and CSV.
+    result["Entry Date"] = result["Entry Date"].dt.date
+    result["Exit Date"] = result["Exit Date"].dt.date
+
+    return result.to_dict("records"), metrics
 
         invested = quantity * entry
         pnl = invested * net_return / 100
