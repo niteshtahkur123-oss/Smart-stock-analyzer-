@@ -504,7 +504,8 @@ def simulate_portfolio(
     initial_capital=10000,
     risk_pct=1.0,
     max_positions=5,
-    allocation_pct=20.0
+    allocation_pct=20.0,
+    trading_cost_pct=0.20
 ):
     if not trades:
         return [], {}
