@@ -947,13 +947,13 @@ if st.button("SCAN STOCKS", type="primary"):
         if all_trades:
 
             portfolio_trades, overall = simulate_portfolio(
-                all_trades,
-                initial_capital=initial_capital,
-                risk_pct=risk_pct,
-                max_positions=max_positions,
-                allocation_pct=allocation_pct
-            )
-
+    all_trades,
+    initial_capital=initial_capital,
+    risk_pct=risk_pct,
+    max_positions=max_positions,
+    allocation_pct=allocation_pct,
+    trading_cost_pct=trading_cost
+)
             st.subheader("Overall Strategy Performance")
 
             c1, c2, c3, c4 = st.columns(4)
