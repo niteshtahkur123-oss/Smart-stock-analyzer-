@@ -582,7 +582,7 @@ def simulate_portfolio(
 
         for pos in open_positions:
 
-            if pos["Exit Date"] <= entry_date:
+            if pos["Exit Date"] < entry_date:
 
                 cash += pos["Invested ₹"] + pos["P&L ₹"]
                 equity += pos["P&L ₹"]
