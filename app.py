@@ -517,23 +517,42 @@ def simulate_portfolio(
     ]
 
     if not all(col in candidates.columns for col in required):
-        raise ValueError(
-            "Portfolio backtest: required trade fields missing."
-        )
+        raise ValueError("Portfolio backtest: required trade fields missing.")
+
+    initial_capital = float(initial_capital)
+    risk_pct = float(risk_pct)
+    allocation_pct = float(allocation_pct)
+    max_positions = int(max_positions)
+
+    if initial_capital <= 0 or risk_pct <= 0:
+        raise ValueError("Capital and risk must be positive.")
+
+    if max_positions < 1 or not 0 < allocation_pct <= 100:
+        raise ValueError("Invalid portfolio settings.")
 
     candidates["Entry Date"] = pd.to_datetime(
-        candidates["Entry Date"]
+        candidates["Entry Date"], errors="coerce"
     )
+
     candidates["Exit Date"] = pd.to_datetime(
-        candidates["Exit Date"]
+        candidates["Exit Date"], errors="coerce"
+    )
+
+    for col in ["Entry ₹", "Exit ₹", "Stop ₹", "Return %"]:
+        candidates[col] = pd.to_numeric(
+            candidates[col], errors="coerce"
+        )
+
+    candidates = candidates.dropna(
+        subset=required[:-1]
     )
 
     candidates = candidates.sort_values(
         ["Entry Date", "Stock"]
     ).reset_index(drop=True)
 
-    cash = float(initial_capital)
-    equity = float(initial_capital)
+    cash = initial_capital
+    equity = initial_capital
 
     open_positions = []
     completed = []
@@ -541,13 +560,28 @@ def simulate_portfolio(
     for _, trade in candidates.iterrows():
 
         entry_date = trade["Entry Date"]
+        entry = float(trade["Entry ₹"])
+        exit_price = float(trade["Exit ₹"])
+        stop = float(trade["Stop ₹"])
+        net_return = float(trade["Return %"])
+        stock = str(trade["Stock"])
 
-        # पहले पुराने positions close करें.
+        if (
+            entry <= 0
+            or exit_price <= 0
+            or stop <= 0
+            or stop >= entry
+            or trade["Exit Date"] < entry_date
+            or net_return <= -100
+        ):
+            continue
+
+        # Close all positions whose exit date has arrived.
         remaining = []
 
         for pos in open_positions:
 
-            if pd.Timestamp(pos["Exit Date"]).date() <= pd.Timestamp(entry_date).date():
+            if pos["Exit Date"] <= entry_date:
 
                 cash += pos["Invested ₹"] + pos["P&L ₹"]
                 equity += pos["P&L ₹"]
@@ -558,15 +592,11 @@ def simulate_portfolio(
 
         open_positions = remaining
 
-        if len(open_positions) >= max_positions:
+        # Do not allow overlapping trades in the same stock.
+        if any(pos["Stock"] == stock for pos in open_positions):
             continue
 
-        entry = float(trade["Entry ₹"])
-        exit_price = float(trade["Exit ₹"])
-        stop = float(trade["Stop ₹"])
-        net_return = float(trade["Return %"])
-
-        if entry <= 0 or stop <= 0 or stop >= entry:
+        if len(open_positions) >= max_positions:
             continue
 
         risk_per_share = entry - stop
@@ -586,6 +616,16 @@ def simulate_portfolio(
 
         if quantity <= 0:
             continue
+
+        invested = quantity * entry
+        pnl = invested * net_return / 100
+
+        position = {
+            "Stock": stock,
+            "Entry Date": entry_date,
+            "Exit Date": trade["Exit Date"],
+            "Entry ₹": round(entry, 2),
+            "Exit ₹": round(exit_price, 2
 
         invested = quantity * entry
         pnl = invested * net_return / 100
