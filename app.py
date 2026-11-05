@@ -570,99 +570,55 @@ def analyze_stock(symbol, df):
     }
 
 
-def run_backtest(df, cost, max_days, symbol=""):
+    # Add the newly opened position
+        open_positions.append(position)
 
-    trades = []
+    # Process remaining open positions after all entry signals
+    for pos in open_positions:
+        cash += pos["Invested ₹"] + pos["P&L ₹"]
+        equity += pos["P&L ₹"]
+        completed.append(pos)
 
-    if len(df) < 220:
-        return trades
+    open_positions = []
 
-    # Start only after enough EMA200 history.
-    i = 199
+    if not completed:
+        return [], {}
 
-    while i < len(df) - 1:
+    results = pd.DataFrame(completed)
 
-        row = df.iloc[i]
+    total_trades = len(results)
+    winning_trades = int((results["P&L ₹"] > 0).sum())
+    losing_trades = int((results["P&L ₹"] < 0).sum())
 
-        score = get_score(row, i)
+    total_pnl = float(results["P&L ₹"].sum())
+    final_capital = initial_capital + total_pnl
 
-        if score < 5:
-            i += 1
-            continue
+    returns = results["Return %"].astype(float)
 
-        atr = float(row["ATR"])
+    win_rate = (
+        winning_trades / total_trades * 100
+        if total_trades else 0
+    )
 
-        if not np.isfinite(atr) or atr <= 0:
-            i += 1
-            continue
+    summary = {
+        "Initial Capital ₹": round(initial_capital, 2),
+        "Final Capital ₹": round(final_capital, 2),
+        "Net P&L ₹": round(total_pnl, 2),
+        "Total Return %": round(
+            (total_pnl / initial_capital) * 100, 2
+        ),
+        "Total Trades": total_trades,
+        "Winning Trades": winning_trades,
+        "Losing Trades": losing_trades,
+        "Win Rate %": round(win_rate, 2),
+        "Average Trade Return %": round(
+            float(returns.mean()), 2
+        ),
+        "Best Trade %": round(float(returns.max()), 2),
+        "Worst Trade %": round(float(returns.min()), 2)
+    }
 
-        # Signal after today's close.
-        # Entry on next trading day's open.
-        entry_index = i + 1
-
-        entry = float(df["Open"].iloc[entry_index])
-
-        if not np.isfinite(entry) or entry <= 0:
-            i += 1
-            continue
-
-        stop = entry - 1.5 * atr
-        target = entry + 2 * atr
-
-        last_index = min(
-            entry_index + max_days - 1,
-            len(df) - 1
-        )
-
-        exit_price = None
-        exit_reason = "Time Exit"
-        exit_index = last_index
-
-        for j in range(entry_index, last_index + 1):
-
-            day_low = float(df["Low"].iloc[j])
-            day_high = float(df["High"].iloc[j])
-
-            # Conservative rule if both levels are touched.
-            if day_low <= stop:
-                exit_price = stop
-                exit_reason = "Stop Loss"
-                exit_index = j
-                break
-
-            if day_high >= target:
-                exit_price = target
-                exit_reason = "Target"
-                exit_index = j
-                break
-
-        if exit_price is None:
-            exit_price = float(df["Close"].iloc[last_index])
-
-        gross_return = (
-            (exit_price / entry) - 1
-        ) * 100
-
-        net_return = gross_return - cost
-
-        trades.append({
-            "Entry Date": str(
-                df.index[entry_index].date()
-            ),
-            "Exit Date": str(df.index[exit_index].date()),
-"Entry ₹": round(entry, 2),
-            "Stock": symbol,
-"Stop ₹": round(stop, 2),
-            "Exit ₹": round(exit_price, 2),
-            "Exit Reason": exit_reason,
-            "Return %": round(net_return, 2)
-        })
-
-        # One trade at a time per stock.
-        i = exit_index + 1
-
-    return trades
-
+    return completed, summary
 
 def calculate_metrics(trades):
 
