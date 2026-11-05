@@ -122,7 +122,224 @@ symbols = [
     x if x.endswith(".NS") else x + ".NS"
     for x in symbols
 ]
+# ==========================================
+# SSA LIVE MARKET MONITOR
+# ==========================================
 
+st.divider()
+st.header("📡 Live Market Monitor")
+
+st.caption(
+    "Source: Yahoo Finance | "
+    "Auto Refresh: 10 Seconds | "
+    "Indicative Data Only"
+)
+
+
+@st.fragment(run_every="10s")
+def live_market_monitor():
+
+    st.caption(
+        "Last Screen Update: "
+        + datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    )
+
+    try:
+
+        live_data = yf.download(
+            tickers=symbols,
+            period="5d",
+            interval="1m",
+            group_by="ticker",
+            auto_adjust=False,
+            progress=False,
+            threads=False,
+            timeout=15
+        )
+
+        if live_data is None or live_data.empty:
+            st.error("DATA DISCONNECTED")
+            return
+
+        records = []
+
+        for symbol in symbols:
+
+            try:
+
+                if isinstance(live_data.columns, pd.MultiIndex):
+
+                    if symbol in live_data.columns.get_level_values(0):
+                        stock_df = live_data[symbol]
+
+                    elif symbol in live_data.columns.get_level_values(1):
+                        stock_df = live_data.xs(
+                            symbol,
+                            axis=1,
+                            level=1
+                        )
+
+                    else:
+                        continue
+
+                else:
+
+                    if len(symbols) != 1:
+                        continue
+
+                    stock_df = live_data
+
+                if "Close" not in stock_df.columns:
+                    continue
+
+                stock_df = stock_df.dropna(
+                    subset=["Close"]
+                )
+
+                if stock_df.empty:
+                    continue
+
+                current_price = float(
+                    stock_df["Close"].iloc[-1]
+                )
+
+                timestamp = stock_df.index[-1]
+
+                if timestamp.tzinfo is None:
+                    timestamp = timestamp.tz_localize(
+                        "Asia/Kolkata"
+                    )
+                else:
+                    timestamp = timestamp.tz_convert(
+                        "Asia/Kolkata"
+                    )
+
+                previous_close = np.nan
+
+                dates = stock_df.index.date
+
+                unique_dates = list(dict.fromkeys(dates))
+
+                if len(unique_dates) >= 2:
+
+                    previous_day = unique_dates[-2]
+
+                    previous_rows = stock_df[
+                        dates == previous_day
+                    ]
+
+                    if not previous_rows.empty:
+                        previous_close = float(
+                            previous_rows["Close"].iloc[-1]
+                        )
+
+                change = (
+                    current_price - previous_close
+                    if np.isfinite(previous_close)
+                    else np.nan
+                )
+
+                change_pct = (
+                    change / previous_close * 100
+                    if np.isfinite(previous_close)
+                    and previous_close > 0
+                    else np.nan
+                )
+
+                volume = (
+                    float(stock_df["Volume"].iloc[-1])
+                    if "Volume" in stock_df.columns
+                    else np.nan
+                )
+
+                age_seconds = (
+                    pd.Timestamp.now(
+                        tz="Asia/Kolkata"
+                    ) - timestamp
+                ).total_seconds()
+
+                status = (
+                    "FRESH"
+                    if 0 <= age_seconds <= 180
+                    else "STALE"
+                )
+
+                records.append({
+
+                    "Stock": symbol.replace(".NS", ""),
+
+                    "LTP ₹": round(current_price, 2),
+
+                    "Change ₹": (
+                        round(change, 2)
+                        if np.isfinite(change)
+                        else None
+                    ),
+
+                    "Change %": (
+                        round(change_pct, 2)
+                        if np.isfinite(change_pct)
+                        else None
+                    ),
+
+                    "Last 1m Volume": (
+                        int(volume)
+                        if np.isfinite(volume)
+                        else None
+                    ),
+
+                    "Last Data Time": timestamp.strftime(
+                        "%H:%M:%S"
+                    ),
+
+                    "Status": status
+                })
+
+            except Exception:
+                continue
+
+        if records:
+
+            monitor_df = pd.DataFrame(records)
+
+            st.metric(
+                "Stocks Received",
+                f"{len(monitor_df)} / {len(symbols)}"
+            )
+
+            st.dataframe(
+                monitor_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+            fresh_count = (
+                monitor_df["Status"] == "FRESH"
+            ).sum()
+
+            stale_count = (
+                monitor_df["Status"] == "STALE"
+            ).sum()
+
+            c1, c2 = st.columns(2)
+
+            c1.metric("Fresh Data", int(fresh_count))
+            c2.metric("Stale Data", int(stale_count))
+
+        else:
+
+            st.warning(
+                "No usable market data received."
+            )
+
+    except Exception as e:
+
+        st.error(
+            f"Market Data Error: {str(e)[:200]}"
+        )
+
+
+live_market_monitor()
 
 def download_stock(symbol):
 
