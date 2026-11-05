@@ -1070,7 +1070,7 @@ if st.button("SCAN STOCKS", type="primary"):
                 f"Max Holding: {holding_days} Trading Days"
             )
 
-             priority_columns = [
+            priority_columns = [
                 "Stock",
                 "Trend",
                 "Price ₹",
@@ -1094,7 +1094,6 @@ if st.button("SCAN STOCKS", type="primary"):
                 + remaining_columns
                 + ["Remark / Note"]
             ]
-
             st.subheader(
                 f"Qualifying Stocks: {len(df_result)}"
             )
