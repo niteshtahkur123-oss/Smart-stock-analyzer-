@@ -692,7 +692,9 @@ def simulate_portfolio(
     ]
 
     if not all(col in candidates.columns for col in required):
-        raise ValueError("Portfolio backtest: required trade fields missing.")
+        raise ValueError(
+            "Portfolio backtest: required trade fields missing."
+        )
 
     initial_capital = float(initial_capital)
     risk_pct = float(risk_pct)
@@ -718,7 +720,9 @@ def simulate_portfolio(
         candidates["Exit Date"], errors="coerce"
     )
 
-    for col in ["Entry ₹", "Exit ₹", "Stop ₹", "Return %"]:
+    for col in [
+        "Entry ₹", "Exit ₹", "Stop ₹", "Return %"
+    ]:
         candidates[col] = pd.to_numeric(
             candidates[col], errors="coerce"
         )
@@ -756,22 +760,30 @@ def simulate_portfolio(
         ):
             continue
 
-        # Release capital from previously exited positions.
+        # Release positions exited before the new entry date.
         remaining = []
 
         for pos in open_positions:
 
             if pos["Exit Date"] < entry_date:
-                cash += pos["Invested ₹"] + pos["P&L ₹"]
+
+                cash += (
+                    pos["Invested ₹"] + pos["P&L ₹"]
+                )
+
                 equity += pos["P&L ₹"]
                 completed.append(pos)
+
             else:
                 remaining.append(pos)
 
         open_positions = remaining
 
         # Avoid overlapping trades in the same stock.
-        if any(pos["Stock"] == stock for pos in open_positions):
+        if any(
+            pos["Stock"] == stock
+            for pos in open_positions
+        ):
             continue
 
         if len(open_positions) >= max_positions:
@@ -811,6 +823,11 @@ def simulate_portfolio(
             "Entry ₹": round(entry, 2),
             "Exit ₹": round(exit_price, 2),
             "Stop ₹": round(stop, 2),
+            "Target 1 ₹": trade.get("Target 1 ₹", np.nan),
+            "Target 2 ₹": trade.get("Target 2 ₹", np.nan),
+            "Target 1 Booked %": trade.get(
+                "Target 1 Booked %", 0
+            ),
             "Quantity": quantity,
             "Invested ₹": round(invested, 2),
             "P&L ₹": round(pnl, 2),
@@ -826,7 +843,11 @@ def simulate_portfolio(
         open_positions,
         key=lambda x: (x["Exit Date"], x["Stock"])
     ):
-        cash += pos["Invested ₹"] + pos["P&L ₹"]
+
+        cash += (
+            pos["Invested ₹"] + pos["P&L ₹"]
+        )
+
         equity += pos["P&L ₹"]
         completed.append(pos)
 
@@ -864,7 +885,9 @@ def simulate_portfolio(
         ].sum()
     )
 
-    final_equity = initial_capital + result["P&L ₹"].sum()
+    final_equity = (
+        initial_capital + result["P&L ₹"].sum()
+    )
 
     metrics = {
         "Trades": len(result),
