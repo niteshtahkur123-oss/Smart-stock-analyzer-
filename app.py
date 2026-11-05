@@ -141,7 +141,7 @@ def live_market_monitor():
 
     st.caption(
         "Last Screen Update: "
-        + datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+        + pd.Timestamp.now(tz="Asia/Kolkata").strftime("%d-%m-%Y %H:%M:%S")
     )
 
     try:
