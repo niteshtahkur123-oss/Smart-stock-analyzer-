@@ -571,7 +571,7 @@ def analyze_stock(symbol, df):
 
 
     # Add the newly opened position
-        open_positions.append(position)
+    open_positions.append(position)
 
     # Process remaining open positions after all entry signals
     for pos in open_positions:
