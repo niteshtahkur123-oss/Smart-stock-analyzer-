@@ -1070,7 +1070,7 @@ if st.button("SCAN STOCKS", type="primary"):
                 f"Max Holding: {holding_days} Trading Days"
             )
 
-              priority_columns = [
+             priority_columns = [
                 "Stock",
                 "Trend",
                 "Price ₹",
