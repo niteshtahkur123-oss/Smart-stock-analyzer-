@@ -1070,7 +1070,8 @@ if st.button("SCAN STOCKS", type="primary"):
                 f"Max Holding: {holding_days} Trading Days"
             )
 
-            priority_columns = [
+                        priority_columns = [
+                "Stock",
                 "Trend",
                 "Price ₹",
                 "Entry Ref ₹",
@@ -1088,7 +1089,8 @@ if st.button("SCAN STOCKS", type="primary"):
             ]
 
             df_result = df_result[
-                priority_columns
+                [col for col in priority_columns
+                 if col in df_result.columns]
                 + remaining_columns
                 + ["Remark / Note"]
             ]
