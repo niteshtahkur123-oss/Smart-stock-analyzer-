@@ -1062,44 +1062,46 @@ if st.button("SCAN STOCKS", type="primary"):
             ).head(max_stocks)
 
             # ==========================================
-# TOP 10 SCANNER RESULT COLUMN ORDER
-# ==========================================
+            # TOP 10 SCANNER RESULT COLUMN ORDER
+            # ==========================================
 
-df_result["Remark / Note"] = (
-    f"SHORT TERM | Daily Setup | "
-    f"Max Holding: {holding_days} Trading Days"
-)
+            df_result["Remark / Note"] = (
+                f"SHORT TERM | Daily Setup | "
+                f"Max Holding: {holding_days} Trading Days"
+            )
 
-priority_columns = [
-    "Trend",
-    "Price ₹",
-    "Entry Ref ₹",
-    "Stop Loss Ref ₹",
-    "Target 1 ₹",
-    "Target 2 ₹",
-    "Strength",
-    "Signal"
-]
+            priority_columns = [
+                "Trend",
+                "Price ₹",
+                "Entry Ref ₹",
+                "Stop Loss Ref ₹",
+                "Target 1 ₹",
+                "Target 2 ₹",
+                "Strength",
+                "Signal"
+            ]
 
-remaining_columns = [
-    col for col in df_result.columns
-    if col not in priority_columns
-    and col != "Remark / Note"
-]
+            remaining_columns = [
+                col for col in df_result.columns
+                if col not in priority_columns
+                and col != "Remark / Note"
+            ]
 
-df_result = df_result[
-    priority_columns
-    + remaining_columns
-    + ["Remark / Note"]
-]
+            df_result = df_result[
+                priority_columns
+                + remaining_columns
+                + ["Remark / Note"]
+            ]
 
-st.subheader(f"Qualifying Stocks: {len(df_result)}")
+            st.subheader(
+                f"Qualifying Stocks: {len(df_result)}"
+            )
 
-st.dataframe(
-    df_result,
-    use_container_width=True,
-    hide_index=True
-)
+            st.dataframe(
+                df_result,
+                use_container_width=True,
+                hide_index=True
+            )
 
             st.download_button(
                 "Download Scan CSV",
