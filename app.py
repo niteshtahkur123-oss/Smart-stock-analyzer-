@@ -1201,48 +1201,50 @@ if st.button("SCAN STOCKS", type="primary"):
                 na_position="last"
             ).head(max_stocks)
 
-            # ==========================================
-            # TOP 10 SCANNER RESULT COLUMN ORDER
-            # ==========================================
+            ==========================================
 
-            df_result["Remark / Note"] = (
-                f"SHORT TERM | Daily Setup | "
-                f"Max Holding: {holding_days} Trading Days"
-            )
+        # TOP 10 SCANNER RESULT COLUMN ORDER
+        # ==========================================
 
-            priority_columns = [
-                "Stock",
-                "Trend",
-                "Price ₹",
-                "Entry Ref ₹",
-                "Stop Loss Ref ₹",
-                "Target 1 ₹",
-                "Target 2 ₹",
-                "Strength",
-                "Signal"
-            ]
+        df_result["Remark / Note"] = (
+            f"SHORT TERM | Daily Setup | "
+            f"Max Holding: {holding_days} Trading Days"
+        )
 
-            remaining_columns = [
-                col for col in df_result.columns
-                if col not in priority_columns
-                and col != "Remark / Note"
-            ]
+        priority_columns = [
+            "Stock",
+            "Trend",
+            "Price ₹",
+            "Entry Ref ₹",
+            "Stop Loss Ref ₹",
+            "Target 1 ₹",
+            "Target 2 ₹",
+            "Strength",
+            "Signal"
+        ]
 
-            df_result = df_result[
-                [col for col in priority_columns
-                 if col in df_result.columns]
-                + remaining_columns
-                + ["Remark / Note"]
-            ]
-            st.subheader(
-                f"Qualifying Stocks: {len(df_result)}"
-            )
+        remaining_columns = [
+            col for col in df_result.columns
+            if col not in priority_columns
+            and col != "Remark / Note"
+        ]
 
-selected_stock = st.selectbox(
-"📊 Select Stock to View Candlestick Chart",
-df_result["Stock"].dropna().unique().tolist(),
-key="selected_chart_stock"
-)
+        df_result = df_result[
+            [col for col in priority_columns
+             if col in df_result.columns]
+            + remaining_columns
+            + ["Remark / Note"]
+        ]
+
+        st.subheader(
+            f"Qualifying Stocks: {len(df_result)}"
+        )
+
+        selected_stock = st.selectbox(
+            "📊 Select Stock to View Candlestick Chart",
+            df_result["Stock"].dropna().unique().tolist(),
+            key="selected_chart_stock"
+        )
 
         st.dataframe(
             df_result,
@@ -1273,10 +1275,10 @@ key="selected_chart_stock"
             ignore_index=True
         )
 
-else:
-    st.warning(
-        "No stocks matched your price filter."
-    )
+    else:
+        st.warning(
+            "No stocks matched your price filter."
+        )
 
         # Advanced backtesting report
         st.divider()
