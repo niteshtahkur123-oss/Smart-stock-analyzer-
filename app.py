@@ -1239,7 +1239,7 @@ if st.button("SCAN STOCKS", type="primary"):
             f"Qualifying Stocks: {len(df_result)}"
         )
 
-            if len(df_result) > 0:
+if len(df_result) > 0:
 
         selected_stock = st.selectbox(
             "📊 Select Stock to View Candlestick Chart",
