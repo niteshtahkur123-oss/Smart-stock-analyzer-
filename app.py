@@ -672,6 +672,166 @@ def calculate_metrics(trades):
         )
     }
     
+def run_backtest(df, cost, max_days, symbol=""):
+
+    trades = []
+
+    if len(df) < 220:
+        return trades
+
+    i = 199
+
+    while i < len(df) - 1:
+
+        row = df.iloc[i]
+        score = get_score(row, i)
+
+        if score < 5:
+            i += 1
+            continue
+
+        atr = float(row["ATR"])
+
+        if not np.isfinite(atr) or atr <= 0:
+            i += 1
+            continue
+
+        # Entry on next trading day's Open.
+        entry_index = i + 1
+        entry = float(df["Open"].iloc[entry_index])
+
+        if not np.isfinite(entry) or entry <= 0:
+            i += 1
+            continue
+
+        stop = entry - (1.5 * atr)
+        target1 = entry + atr
+        target2 = entry + (2 * atr)
+
+        last_index = min(
+            entry_index + max_days - 1,
+            len(df) - 1
+        )
+
+        remaining = 100.0
+        booked = 0.0
+        weighted_exit = 0.0
+
+        t1_hit = False
+        exit_reason = "Time Exit"
+        exit_index = last_index
+
+        for j in range(entry_index, last_index + 1):
+
+            day_low = float(df["Low"].iloc[j])
+            day_high = float(df["High"].iloc[j])
+            day_open = float(df["Open"].iloc[j])
+
+            if not t1_hit:
+
+                # Stop Loss gets priority.
+                if day_low <= stop:
+
+                    fill_price = (
+                        day_open if day_open < stop else stop
+                    )
+
+                    weighted_exit += remaining * fill_price
+                    remaining = 0.0
+                    exit_reason = "Stop Loss"
+                    exit_index = j
+                    break
+
+                if day_high >= target1:
+
+                    booked = 50.0
+                    remaining = 50.0
+
+                    weighted_exit += 50.0 * target1
+                    t1_hit = True
+
+                    # Conservative handling of same-day ambiguity.
+                    if day_low <= entry:
+
+                        weighted_exit += 50.0 * entry
+                        remaining = 0.0
+                        exit_reason = "Target 1 + Breakeven"
+                        exit_index = j
+                        break
+
+                    if day_high >= target2:
+
+                        weighted_exit += 50.0 * target2
+                        remaining = 0.0
+                        exit_reason = "Target 1 + Target 2"
+                        exit_index = j
+                        break
+
+                    continue
+
+            else:
+
+                # Remaining 50% protected at entry price.
+                if day_low <= entry:
+
+                    weighted_exit += remaining * entry
+                    remaining = 0.0
+                    exit_reason = "Partial + Breakeven"
+                    exit_index = j
+                    break
+
+                if day_high >= target2:
+
+                    weighted_exit += remaining * target2
+                    remaining = 0.0
+                    exit_reason = "Target 1 + Target 2"
+                    exit_index = j
+                    break
+
+        if remaining > 0:
+
+            final_price = float(
+                df["Close"].iloc[last_index]
+            )
+
+            weighted_exit += remaining * final_price
+            exit_index = last_index
+
+            exit_reason = (
+                "Partial + Time Exit"
+                if t1_hit
+                else "Time Exit"
+            )
+
+        average_exit = weighted_exit / 100.0
+
+        gross_return = (
+            (average_exit / entry) - 1
+        ) * 100
+
+        net_return = gross_return - cost
+
+        trades.append({
+            "Entry Date": str(
+                df.index[entry_index].date()
+            ),
+            "Exit Date": str(
+                df.index[exit_index].date()
+            ),
+            "Entry ₹": round(entry, 2),
+            "Stock": symbol,
+            "Stop ₹": round(stop, 2),
+            "Target 1 ₹": round(target1, 2),
+            "Target 2 ₹": round(target2, 2),
+            "Exit ₹": round(average_exit, 2),
+            "Target 1 Booked %": booked,
+            "Exit Reason": exit_reason,
+            "Return %": round(net_return, 2)
+        })
+
+        i = exit_index + 1
+
+    return trades
 def simulate_portfolio(
     trades,
     initial_capital=10000,
