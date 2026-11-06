@@ -1250,7 +1250,7 @@ use_container_width=True,
 hide_index=True
 )
 
-            st.download_button(
+st.download_button(
                 "Download Scan CSV",
                 df_result.to_csv(
                     index=False
