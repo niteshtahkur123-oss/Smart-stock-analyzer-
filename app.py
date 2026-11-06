@@ -1261,7 +1261,7 @@ st.download_button(
 
 history = df_result.copy()
 
-            history.insert(
+history.insert(
                 0,
                 "Scan Time",
                 datetime.now().strftime(
