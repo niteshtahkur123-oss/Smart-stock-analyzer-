@@ -1269,16 +1269,16 @@ history.insert(
                 )
             )
 
-            st.session_state.scan_history = pd.concat(
+st.session_state.scan_history = pd.concat(
                 [
-                    st.session_state.scan_history,
+st.session_state.scan_history,
                     history
                 ],
                 ignore_index=True
             )
 
         else:
-            st.warning(
+          st.warning(
                 "No stocks matched your price filter."
             )
 
