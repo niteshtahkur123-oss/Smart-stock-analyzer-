@@ -1246,147 +1246,62 @@ if st.button("SCAN STOCKS", type="primary"):
                 df_result["Stock"].dropna().unique().tolist(),
                 key="selected_chart_stock"
             )
+           # ==========================================
+        # TOP 10 SCANNER RESULTS
         # ==========================================
-        # ADVANCED CANDLESTICK CHART
-        # ==========================================
 
-        st.subheader(f"📊 Technical Chart: {selected_stock}")
+        if results:
 
-        chart_df = download_stock(selected_stock)
+            df_result = pd.DataFrame(results)
 
-        if chart_df is not None and not chart_df.empty:
+            df_result = df_result.sort_values(
+                ["Score", "Volume Ratio"],
+                ascending=False,
+                na_position="last"
+            ).head(max_stocks)
 
-            chart_df["EMA9"] = (
-                chart_df["Close"].ewm(span=9, adjust=False).mean()
+            df_result["Remark / Note"] = (
+                f"SHORT TERM | Daily Setup | "
+                f"Max Holding: {holding_days} Trading Days"
             )
 
-            chart_df["EMA20"] = (
-                chart_df["Close"].ewm(span=20, adjust=False).mean()
-            )
-
-            chart_df["EMA50"] = (
-                chart_df["Close"].ewm(span=50, adjust=False).mean()
-            )
-
-            chart_df["BUY"] = (
-                (chart_df["EMA9"] > chart_df["EMA20"]) &
-                (chart_df["EMA9"].shift(1) <= chart_df["EMA20"].shift(1))
-            )
-
-            chart_df["SELL"] = (
-                (chart_df["EMA9"] < chart_df["EMA20"]) &
-                (chart_df["EMA9"].shift(1) >= chart_df["EMA20"].shift(1))
-            )
-
-            selected_row = df_result[
-                df_result["Stock"] == selected_stock
-            ].iloc[0]
-
-            fig = go.Figure()
-
-            # Candlestick
-            fig.add_trace(go.Candlestick(
-                x=chart_df.index,
-                open=chart_df["Open"],
-                high=chart_df["High"],
-                low=chart_df["Low"],
-                close=chart_df["Close"],
-                name="Price"
-            ))
-
-            # EMA Lines
-            for ema, label in [
-                ("EMA9", "EMA 9"),
-                ("EMA20", "EMA 20"),
-                ("EMA50", "EMA 50")
-            ]:
-                fig.add_trace(go.Scatter(
-                    x=chart_df.index,
-                    y=chart_df[ema],
-                    mode="lines",
-                    name=label
-                ))
-
-            # BUY Markers
-            buy_points = chart_df[chart_df["BUY"]]
-
-            fig.add_trace(go.Scatter(
-                x=buy_points.index,
-                y=buy_points["Low"] * 0.995,
-                mode="markers+text",
-                name="BUY",
-                text=["BUY"] * len(buy_points),
-                textposition="bottom center"
-            ))
-
-            # SELL Markers
-            sell_points = chart_df[chart_df["SELL"]]
-
-            fig.add_trace(go.Scatter(
-                x=sell_points.index,
-                y=sell_points["High"] * 1.005,
-                mode="markers+text",
-                name="SELL",
-                text=["SELL"] * len(sell_points),
-                textposition="top center"
-            ))
-
-            # Entry, SL and Targets
-            levels = [
-                ("Entry Ref ₹", "ENTRY"),
-                ("Stop Loss Ref ₹", "STOP LOSS"),
-                ("Target 1 ₹", "TARGET 1"),
-                ("Target 2 ₹", "TARGET 2")
+            priority_columns = [
+                "Stock",
+                "Trend",
+                "Price ₹",
+                "Entry Ref ₹",
+                "Stop Loss Ref ₹",
+                "Target 1 ₹",
+                "Target 2 ₹",
+                "Strength",
+                "Signal"
             ]
 
-            for column, label in levels:
+            remaining_columns = [
+                col for col in df_result.columns
+                if col not in priority_columns
+                and col != "Remark / Note"
+            ]
 
-                if column in selected_row.index:
+            df_result = df_result[
+                [col for col in priority_columns
+                 if col in df_result.columns]
+                + remaining_columns
+                + ["Remark / Note"]
+            ]
 
-                    value = pd.to_numeric(
-                        selected_row[column],
-                        errors="coerce"
-                    )
-
-                    if pd.notna(value) and value > 0:
-
-                        fig.add_hline(
-                            y=value,
-                            line_dash="dash",
-                            annotation_text=f"{label}: ₹{value:.2f}"
-                        )
-
-            # Resistance - Previous 20 Trading Days
-            resistance = chart_df["High"].tail(20).max()
-
-            fig.add_hline(
-                y=resistance,
-                line_dash="dot",
-                annotation_text=f"RESISTANCE: ₹{resistance:.2f}"
+            st.subheader(
+                f"Qualifying Stocks: {len(df_result)}"
             )
 
-            fig.update_layout(
-                title=f"{selected_stock} - Daily Candlestick Chart",
-                xaxis_title="Date",
-                yaxis_title="Price (₹)",
-                xaxis_rangeslider_visible=False,
-                height=700,
-                hovermode="x unified"
-            )
-
-            st.plotly_chart(
-                fig,
-                use_container_width=True
-            )
-
-        else:
-            st.warning("Chart data is currently unavailable.")            
+            # Scanner Table
             st.dataframe(
                 df_result,
                 use_container_width=True,
                 hide_index=True
             )
 
+            # CSV Download
             st.download_button(
                 "Download Scan CSV",
                 df_result.to_csv(index=False).encode("utf-8"),
@@ -1394,6 +1309,7 @@ if st.button("SCAN STOCKS", type="primary"):
                 mime="text/csv"
             )
 
+            # Save Scan History
             history = df_result.copy()
 
             history.insert(
@@ -1409,13 +1325,221 @@ if st.button("SCAN STOCKS", type="primary"):
                 ],
                 ignore_index=True
             )
-     
-        else:
-            st.warning("No stocks matched your price filter.")
 
-        # Advanced backtesting report
+            # ==========================================
+            # SELECT STOCK
+            # ==========================================
+
+            selected_stock = st.selectbox(
+                "📊 Select Stock to View Candlestick Chart",
+                df_result["Stock"].dropna().unique().tolist(),
+                key="selected_chart_stock"
+            )
+
+            # IMPORTANT: Add .NS because scanner stores
+            # stock names without the Yahoo Finance suffix.
+            chart_df = download_stock(
+                selected_stock + ".NS"
+            )
+
+            # ==========================================
+            # ADVANCED CANDLESTICK CHART
+            # ==========================================
+
+            st.subheader(
+                f"📊 Technical Chart: {selected_stock}"
+            )
+
+            if chart_df is not None and not chart_df.empty:
+
+                chart_df["EMA9"] = (
+                    chart_df["Close"].ewm(
+                        span=9,
+                        adjust=False
+                    ).mean()
+                )
+
+                chart_df["EMA20"] = (
+                    chart_df["Close"].ewm(
+                        span=20,
+                        adjust=False
+                    ).mean()
+                )
+
+                chart_df["EMA50"] = (
+                    chart_df["Close"].ewm(
+                        span=50,
+                        adjust=False
+                    ).mean()
+                )
+
+                # EMA Crossover Signals
+                chart_df["BUY"] = (
+                    (chart_df["EMA9"] > chart_df["EMA20"]) &
+                    (chart_df["EMA9"].shift(1) <=
+                     chart_df["EMA20"].shift(1))
+                )
+
+                chart_df["SELL"] = (
+                    (chart_df["EMA9"] < chart_df["EMA20"]) &
+                    (chart_df["EMA9"].shift(1) >=
+                     chart_df["EMA20"].shift(1))
+                )
+
+                selected_row = df_result[
+                    df_result["Stock"] == selected_stock
+                ].iloc[0]
+
+                fig = go.Figure()
+
+                # Candlestick
+                fig.add_trace(
+                    go.Candlestick(
+                        x=chart_df.index,
+                        open=chart_df["Open"],
+                        high=chart_df["High"],
+                        low=chart_df["Low"],
+                        close=chart_df["Close"],
+                        name="Price"
+                    )
+                )
+
+                # EMA Lines
+                for ema, label in [
+                    ("EMA9", "EMA 9"),
+                    ("EMA20", "EMA 20"),
+                    ("EMA50", "EMA 50")
+                ]:
+
+                    fig.add_trace(
+                        go.Scatter(
+                            x=chart_df.index,
+                            y=chart_df[ema],
+                            mode="lines",
+                            name=label
+                        )
+                    )
+
+                # BUY Markers
+                buy_points = chart_df[
+                    chart_df["BUY"]
+                ]
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=buy_points.index,
+                        y=buy_points["Low"] * 0.995,
+                        mode="markers+text",
+                        name="BUY",
+                        text=["BUY"] * len(buy_points),
+                        textposition="bottom center"
+                    )
+                )
+
+                # SELL Markers
+                sell_points = chart_df[
+                    chart_df["SELL"]
+                ]
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=sell_points.index,
+                        y=sell_points["High"] * 1.005,
+                        mode="markers+text",
+                        name="SELL",
+                        text=["SELL"] * len(sell_points),
+                        textposition="top center"
+                    )
+                )
+
+                # Entry, Stop Loss and Targets
+                levels = [
+                    ("Entry Ref ₹", "ENTRY"),
+                    ("Stop Loss Ref ₹", "STOP LOSS"),
+                    ("Target 1 ₹", "TARGET 1"),
+                    ("Target 2 ₹", "TARGET 2")
+                ]
+
+                for column, label in levels:
+
+                    value = pd.to_numeric(
+                        selected_row.get(column),
+                        errors="coerce"
+                    )
+
+                    if pd.notna(value) and value > 0:
+
+                        fig.add_hline(
+                            y=value,
+                            line_dash="dash",
+                            annotation_text=(
+                                f"{label}: ₹{value:.2f}"
+                            )
+                        )
+
+                # Resistance
+                resistance = (
+                    chart_df["High"].tail(20).max()
+                )
+
+                fig.add_hline(
+                    y=resistance,
+                    line_dash="dot",
+                    annotation_text=(
+                        f"RESISTANCE: ₹{resistance:.2f}"
+                    )
+                )
+
+                # Support
+                support = (
+                    chart_df["Low"].tail(20).min()
+                )
+
+                fig.add_hline(
+                    y=support,
+                    line_dash="dot",
+                    annotation_text=(
+                        f"SUPPORT: ₹{support:.2f}"
+                    )
+                )
+
+                fig.update_layout(
+                    title=(
+                        f"{selected_stock} - Daily Candlestick Chart"
+                    ),
+                    xaxis_title="Date",
+                    yaxis_title="Price (₹)",
+                    xaxis_rangeslider_visible=False,
+                    height=700,
+                    hovermode="x unified"
+                )
+
+                st.plotly_chart(
+                    fig,
+                    use_container_width=True
+                )
+
+            else:
+
+                st.warning(
+                    "Chart data is currently unavailable."
+                )
+
+        else:
+
+            st.warning(
+                "No stocks matched your price filter."
+            )
+
+        # ==========================================
+        # ADVANCED BACKTESTING REPORT
+        # ==========================================
+
         st.divider()
-        st.header("📈 Advanced Historical Backtesting")
+
+        st.header(
+            "📈 Advanced Historical Backtesting"
+        )
 
         if all_trades:
 
@@ -1427,6 +1551,9 @@ if st.button("SCAN STOCKS", type="primary"):
                 allocation_pct=allocation_pct,
                 trading_cost_pct=trading_cost
             )
+
+            st.subheader("Overall Strategy Performance")  
+
 
             st.subheader("Overall Strategy Performance")
 
