@@ -1331,10 +1331,10 @@ if st.button("SCAN STOCKS", type="primary"):
             # ==========================================
 
             selected_stock = st.selectbox(
-                "📊 Select Stock to View Candlestick Chart",
-                df_result["Stock"].dropna().unique().tolist(),
-                key="selected_chart_stock"
-            )
+    "📊 Select Stock to View Candlestick Chart",
+    df_result["Stock"].dropna().unique().tolist(),
+    key="scanner_chart_stock_dropdown"
+)
 
             # IMPORTANT: Add .NS because scanner stores
             # stock names without the Yahoo Finance suffix.
