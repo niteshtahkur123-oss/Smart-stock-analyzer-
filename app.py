@@ -1201,10 +1201,9 @@ if st.button("SCAN STOCKS", type="primary"):
                 na_position="last"
             ).head(max_stocks)
 
-            ==========================================
-
-        # TOP 10 SCANNER RESULT COLUMN ORDER
-        # ==========================================
+            # ==========================================
+            # TOP 10 SCANNER RESULT COLUMN ORDER
+            # ==========================================
 
         df_result["Remark / Note"] = (
             f"SHORT TERM | Daily Setup | "
