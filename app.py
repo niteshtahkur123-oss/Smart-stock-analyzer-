@@ -1238,45 +1238,45 @@ if st.button("SCAN STOCKS", type="primary"):
                 f"Qualifying Stocks: {len(df_result)}"
             )
 
-            selected_stock = st.selectbox(
+selected_stock = st.selectbox(
 "📊 Select Stock to View Candlestick Chart",
 df_result["Stock"].dropna().unique().tolist(),
 key="selected_chart_stock"
 )
 
-st.dataframe(
-df_result,
-use_container_width=True,
-hide_index=True
-)
-
-            st.download_button(
-                "Download Scan CSV",
-                df_result.to_csv(index=False).encode("utf-8"),
-                file_name=f"SSA_{date.today()}.csv",
-                mime="text/csv"
-            )
-
-            history = df_result.copy()
-
-            history.insert(
-                0,
-                "Scan Time",
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            )
-
-            st.session_state.scan_history = pd.concat(
-                [
-                    st.session_state.scan_history,
-                    history
-                ],
-                ignore_index=True
-            )
-
-    else:
-        st.warning(
-            "No stocks matched your price filter."
+        st.dataframe(
+            df_result,
+            use_container_width=True,
+            hide_index=True
         )
+
+        st.download_button(
+            "Download Scan CSV",
+            df_result.to_csv(index=False).encode("utf-8"),
+            file_name=f"SSA_{date.today()}.csv",
+            mime="text/csv"
+        )
+
+        history = df_result.copy()
+
+        history.insert(
+            0,
+            "Scan Time",
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+
+        st.session_state.scan_history = pd.concat(
+            [
+                st.session_state.scan_history,
+                history
+            ],
+            ignore_index=True
+        )
+
+else:
+    st.warning(
+        "No stocks matched your price filter."
+    )
 
         # Advanced backtesting report
         st.divider()
