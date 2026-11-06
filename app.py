@@ -1259,7 +1259,7 @@ st.download_button(
                 mime="text/csv"
             )
 
-       history = df_result.copy()
+history = df_result.copy()
 
             history.insert(
                 0,
