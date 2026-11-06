@@ -1411,9 +1411,7 @@ if st.button("SCAN STOCKS", type="primary"):
             )
      
         else:
-            st.warning(
-                "No stocks matched your price filter."
-            )
+            st.warning("No stocks matched your price filter.")
 
         # Advanced backtesting report
         st.divider()
