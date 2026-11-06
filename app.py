@@ -1246,7 +1246,141 @@ if st.button("SCAN STOCKS", type="primary"):
                 df_result["Stock"].dropna().unique().tolist(),
                 key="selected_chart_stock"
             )
+        # ==========================================
+        # ADVANCED CANDLESTICK CHART
+        # ==========================================
 
+        st.subheader(f"📊 Technical Chart: {selected_stock}")
+
+        chart_df = download_stock(selected_stock)
+
+        if chart_df is not None and not chart_df.empty:
+
+            chart_df["EMA9"] = (
+                chart_df["Close"].ewm(span=9, adjust=False).mean()
+            )
+
+            chart_df["EMA20"] = (
+                chart_df["Close"].ewm(span=20, adjust=False).mean()
+            )
+
+            chart_df["EMA50"] = (
+                chart_df["Close"].ewm(span=50, adjust=False).mean()
+            )
+
+            chart_df["BUY"] = (
+                (chart_df["EMA9"] > chart_df["EMA20"]) &
+                (chart_df["EMA9"].shift(1) <= chart_df["EMA20"].shift(1))
+            )
+
+            chart_df["SELL"] = (
+                (chart_df["EMA9"] < chart_df["EMA20"]) &
+                (chart_df["EMA9"].shift(1) >= chart_df["EMA20"].shift(1))
+            )
+
+            selected_row = df_result[
+                df_result["Stock"] == selected_stock
+            ].iloc[0]
+
+            fig = go.Figure()
+
+            # Candlestick
+            fig.add_trace(go.Candlestick(
+                x=chart_df.index,
+                open=chart_df["Open"],
+                high=chart_df["High"],
+                low=chart_df["Low"],
+                close=chart_df["Close"],
+                name="Price"
+            ))
+
+            # EMA Lines
+            for ema, label in [
+                ("EMA9", "EMA 9"),
+                ("EMA20", "EMA 20"),
+                ("EMA50", "EMA 50")
+            ]:
+                fig.add_trace(go.Scatter(
+                    x=chart_df.index,
+                    y=chart_df[ema],
+                    mode="lines",
+                    name=label
+                ))
+
+            # BUY Markers
+            buy_points = chart_df[chart_df["BUY"]]
+
+            fig.add_trace(go.Scatter(
+                x=buy_points.index,
+                y=buy_points["Low"] * 0.995,
+                mode="markers+text",
+                name="BUY",
+                text=["BUY"] * len(buy_points),
+                textposition="bottom center"
+            ))
+
+            # SELL Markers
+            sell_points = chart_df[chart_df["SELL"]]
+
+            fig.add_trace(go.Scatter(
+                x=sell_points.index,
+                y=sell_points["High"] * 1.005,
+                mode="markers+text",
+                name="SELL",
+                text=["SELL"] * len(sell_points),
+                textposition="top center"
+            ))
+
+            # Entry, SL and Targets
+            levels = [
+                ("Entry Ref ₹", "ENTRY"),
+                ("Stop Loss Ref ₹", "STOP LOSS"),
+                ("Target 1 ₹", "TARGET 1"),
+                ("Target 2 ₹", "TARGET 2")
+            ]
+
+            for column, label in levels:
+
+                if column in selected_row.index:
+
+                    value = pd.to_numeric(
+                        selected_row[column],
+                        errors="coerce"
+                    )
+
+                    if pd.notna(value) and value > 0:
+
+                        fig.add_hline(
+                            y=value,
+                            line_dash="dash",
+                            annotation_text=f"{label}: ₹{value:.2f}"
+                        )
+
+            # Resistance - Previous 20 Trading Days
+            resistance = chart_df["High"].tail(20).max()
+
+            fig.add_hline(
+                y=resistance,
+                line_dash="dot",
+                annotation_text=f"RESISTANCE: ₹{resistance:.2f}"
+            )
+
+            fig.update_layout(
+                title=f"{selected_stock} - Daily Candlestick Chart",
+                xaxis_title="Date",
+                yaxis_title="Price (₹)",
+                xaxis_rangeslider_visible=False,
+                height=700,
+                hovermode="x unified"
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
+        else:
+            st.warning("Chart data is currently unavailable.")            
             st.dataframe(
                 df_result,
                 use_container_width=True,
