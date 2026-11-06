@@ -142,7 +142,9 @@ def live_market_monitor():
 
     st.caption(
         "Last Screen Update: "
-        + pd.Timestamp.now(tz="Asia/Kolkata").strftime("%d-%m-%Y %H:%M:%S")
+        + pd.Timestamp.now(tz="Asia/Kolkata").strftime(
+            "%d-%m-%Y %H:%M:%S"
+        )
     )
 
     try:
@@ -155,7 +157,7 @@ def live_market_monitor():
             auto_adjust=False,
             progress=False,
             threads=False,
-            timeout=15
+            timeout=30
         )
 
         if live_data is None or live_data.empty:
@@ -163,6 +165,7 @@ def live_market_monitor():
             return
 
         records = []
+        stock_frames = {}
 
         for symbol in symbols:
 
@@ -171,14 +174,14 @@ def live_market_monitor():
                 if isinstance(live_data.columns, pd.MultiIndex):
 
                     if symbol in live_data.columns.get_level_values(0):
-                        stock_df = live_data[symbol]
+                        stock_df = live_data[symbol].copy()
 
                     elif symbol in live_data.columns.get_level_values(1):
                         stock_df = live_data.xs(
                             symbol,
                             axis=1,
                             level=1
-                        )
+                        ).copy()
 
                     else:
                         continue
@@ -188,7 +191,12 @@ def live_market_monitor():
                     if len(symbols) != 1:
                         continue
 
-                    stock_df = live_data
+                    stock_df = live_data.copy()
+
+                if isinstance(stock_df.columns, pd.MultiIndex):
+                    stock_df.columns = (
+                        stock_df.columns.get_level_values(0)
+                    )
 
                 if "Close" not in stock_df.columns:
                     continue
@@ -199,6 +207,8 @@ def live_market_monitor():
 
                 if stock_df.empty:
                     continue
+
+                stock_frames[symbol] = stock_df.copy()
 
                 current_price = float(
                     stock_df["Close"].iloc[-1]
@@ -215,11 +225,11 @@ def live_market_monitor():
                         "Asia/Kolkata"
                     )
 
-                previous_close = np.nan
-
                 dates = stock_df.index.date
 
                 unique_dates = list(dict.fromkeys(dates))
+
+                previous_close = np.nan
 
                 if len(unique_dates) >= 2:
 
@@ -261,14 +271,13 @@ def live_market_monitor():
 
                 status = (
                     "FRESH"
-                    if 0 <= age_seconds <= 180
+                    if 0 <= age_seconds <= 600
                     else "STALE"
                 )
 
                 records.append({
 
                     "Stock": symbol.replace(".NS", ""),
-
                     "LTP ₹": round(current_price, 2),
 
                     "Change ₹": (
@@ -299,38 +308,239 @@ def live_market_monitor():
             except Exception:
                 continue
 
-        if records:
+        if not records:
 
-            monitor_df = pd.DataFrame(records)
+            st.warning("No usable market data received.")
+            return
 
-            st.metric(
-                "Stocks Received",
-                f"{len(monitor_df)} / {len(symbols)}"
-            )
+        # ======================================
+        # LIVE MARKET TABLE
+        # ======================================
 
-            st.dataframe(
-                monitor_df,
-                use_container_width=True,
-                hide_index=True
-            )
+        monitor_df = pd.DataFrame(records)
 
-            fresh_count = (
-                monitor_df["Status"] == "FRESH"
-            ).sum()
+        st.metric(
+            "Stocks Received",
+            f"{len(monitor_df)} / {len(symbols)}"
+        )
 
-            stale_count = (
-                monitor_df["Status"] == "STALE"
-            ).sum()
+        st.dataframe(
+            monitor_df,
+            use_container_width=True,
+            hide_index=True
+        )
 
-            c1, c2 = st.columns(2)
+        fresh_count = (
+            monitor_df["Status"] == "FRESH"
+        ).sum()
 
-            c1.metric("Fresh Data", int(fresh_count))
-            c2.metric("Stale Data", int(stale_count))
+        stale_count = (
+            monitor_df["Status"] == "STALE"
+        ).sum()
+
+        c1, c2 = st.columns(2)
+
+        c1.metric("Fresh Data", int(fresh_count))
+        c2.metric("Stale Data", int(stale_count))
+
+        # ======================================
+        # SELECT STOCK FOR LIVE CHART
+        # ======================================
+
+        st.divider()
+
+        st.subheader("📈 LIVE 5-MINUTE CHART")
+
+        stock_names = [
+            s.replace(".NS", "")
+            for s in stock_frames.keys()
+        ]
+
+        if not stock_names:
+            st.warning("No chart data available.")
+            return
+
+        selected_stock = st.selectbox(
+            "Select Stock",
+            stock_names,
+            key="live_5m_chart_stock"
+        )
+
+        selected_symbol = selected_stock + ".NS"
+
+        chart_df = stock_frames[selected_symbol].copy()
+
+        required = ["Open", "High", "Low", "Close"]
+
+        if not all(c in chart_df.columns for c in required):
+
+            st.warning("OHLC chart data unavailable.")
 
         else:
 
-            st.warning(
-                "No usable market data received."
+            # ==================================
+            # EMA INDICATORS
+            # ==================================
+
+            chart_df["EMA9"] = (
+                chart_df["Close"].ewm(
+                    span=9,
+                    adjust=False
+                ).mean()
+            )
+
+            chart_df["EMA20"] = (
+                chart_df["Close"].ewm(
+                    span=20,
+                    adjust=False
+                ).mean()
+            )
+
+            # ==================================
+            # BUY / SELL CONDITIONS
+            # ==================================
+
+            chart_df["BUY"] = (
+                (chart_df["EMA9"] > chart_df["EMA20"]) &
+                (chart_df["EMA9"].shift(1) <=
+                 chart_df["EMA20"].shift(1))
+            )
+
+            chart_df["SELL"] = (
+                (chart_df["EMA9"] < chart_df["EMA20"]) &
+                (chart_df["EMA9"].shift(1) >=
+                 chart_df["EMA20"].shift(1))
+            )
+
+            # ==================================
+            # LATEST SIGNAL
+            # ==================================
+
+            latest = chart_df.iloc[-1]
+
+            if bool(latest["BUY"]):
+
+                st.success("🟢 BUY SIGNAL")
+
+            elif bool(latest["SELL"]):
+
+                st.error("🔴 SELL SIGNAL")
+
+            elif latest["EMA9"] > latest["EMA20"]:
+
+                st.info("EMA TREND: BULLISH")
+
+            else:
+
+                st.warning("EMA TREND: BEARISH")
+
+            # ==================================
+            # CANDLESTICK CHART
+            # ==================================
+
+            fig = go.Figure()
+
+            fig.add_trace(
+                go.Candlestick(
+                    x=chart_df.index,
+                    open=chart_df["Open"],
+                    high=chart_df["High"],
+                    low=chart_df["Low"],
+                    close=chart_df["Close"],
+                    name="5-Min Price"
+                )
+            )
+
+            # EMA 9
+
+            fig.add_trace(
+                go.Scatter(
+                    x=chart_df.index,
+                    y=chart_df["EMA9"],
+                    mode="lines",
+                    name="EMA 9"
+                )
+            )
+
+            # EMA 20
+
+            fig.add_trace(
+                go.Scatter(
+                    x=chart_df.index,
+                    y=chart_df["EMA20"],
+                    mode="lines",
+                    name="EMA 20"
+                )
+            )
+
+            # BUY MARKERS
+
+            buy_points = chart_df[
+                chart_df["BUY"]
+            ]
+
+            fig.add_trace(
+                go.Scatter(
+                    x=buy_points.index,
+                    y=buy_points["Low"] * 0.998,
+                    mode="markers+text",
+                    name="BUY",
+                    text=["BUY"] * len(buy_points),
+                    textposition="bottom center"
+                )
+            )
+
+            # SELL MARKERS
+
+            sell_points = chart_df[
+                chart_df["SELL"]
+            ]
+
+            fig.add_trace(
+                go.Scatter(
+                    x=sell_points.index,
+                    y=sell_points["High"] * 1.002,
+                    mode="markers+text",
+                    name="SELL",
+                    text=["SELL"] * len(sell_points),
+                    textposition="top center"
+                )
+            )
+
+            # ==================================
+            # CHART LAYOUT
+            # ==================================
+
+            fig.update_layout(
+                title=f"{selected_stock} - LIVE 5 MIN",
+                xaxis_title="Time",
+                yaxis_title="Price (₹)",
+                height=650,
+                hovermode="x unified",
+                dragmode="pan",
+                xaxis_rangeslider_visible=False
+            )
+
+            fig.update_xaxes(
+                type="date",
+                tickformat="%H:%M",
+                nticks=12
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True,
+                config={
+                    "scrollZoom": True,
+                    "displayModeBar": True,
+                    "displaylogo": False,
+                    "responsive": True,
+                    "modeBarButtonsToAdd": [
+                        "zoomIn2d",
+                        "zoomOut2d",
+                        "resetScale2d"
+                    ]
+                }
             )
 
     except Exception as e:
