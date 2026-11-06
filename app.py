@@ -1201,9 +1201,9 @@ if st.button("SCAN STOCKS", type="primary"):
                 na_position="last"
             ).head(max_stocks)
 
-            # ==========================================
-            # TOP 10 SCANNER RESULT COLUMN ORDER
-            # ==========================================
+        # ==========================================
+        # TOP 10 SCANNER RESULT COLUMN ORDER
+        # ==========================================
 
         df_result["Remark / Note"] = (
             f"SHORT TERM | Daily Setup | "
@@ -1239,42 +1239,47 @@ if st.button("SCAN STOCKS", type="primary"):
             f"Qualifying Stocks: {len(df_result)}"
         )
 
-if len(df_result) > 0:
+        if len(df_result) > 0:
 
-    selected_stock = st.selectbox(
-        "📊 Select Stock to View Candlestick Chart",
-        df_result["Stock"].dropna().unique().tolist(),
-        key="selected_chart_stock"
-    )
+            selected_stock = st.selectbox(
+                "📊 Select Stock to View Candlestick Chart",
+                df_result["Stock"].dropna().unique().tolist(),
+                key="selected_chart_stock"
+            )
 
-    st.dataframe(
-        df_result,
-        use_container_width=True,
-        hide_index=True
-    )
+            st.dataframe(
+                df_result,
+                use_container_width=True,
+                hide_index=True
+            )
 
-    st.download_button(
-        "Download Scan CSV",
-        df_result.to_csv(index=False).encode("utf-8"),
-        file_name=f"SSA_{date.today()}.csv",
-        mime="text/csv"
-    )
+            st.download_button(
+                "Download Scan CSV",
+                df_result.to_csv(index=False).encode("utf-8"),
+                file_name=f"SSA_{date.today()}.csv",
+                mime="text/csv"
+            )
 
-    history = df_result.copy()
+            history = df_result.copy()
 
-    history.insert(
-        0,
-        "Scan Time",
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    )
+            history.insert(
+                0,
+                "Scan Time",
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
 
-    st.session_state.scan_history = pd.concat(
-        [st.session_state.scan_history, history],
-        ignore_index=True
-    )
+            st.session_state.scan_history = pd.concat(
+                [
+                    st.session_state.scan_history,
+                    history
+                ],
+                ignore_index=True
+            )
 
-else:
-    st.warning("No stocks matched your price filter.")
+        else:
+            st.warning(
+                "No stocks matched your price filter."
+            )
 
         # Advanced backtesting report
         st.divider()
@@ -1283,13 +1288,14 @@ else:
         if all_trades:
 
             portfolio_trades, overall = simulate_portfolio(
-    all_trades,
-    initial_capital=initial_capital,
-    risk_pct=risk_pct,
-    max_positions=max_positions,
-    allocation_pct=allocation_pct,
-    trading_cost_pct=trading_cost
-)
+                all_trades,
+                initial_capital=initial_capital,
+                risk_pct=risk_pct,
+                max_positions=max_positions,
+                allocation_pct=allocation_pct,
+                trading_cost_pct=trading_cost
+            )
+
             st.subheader("Overall Strategy Performance")
 
             c1, c2, c3, c4 = st.columns(4)
