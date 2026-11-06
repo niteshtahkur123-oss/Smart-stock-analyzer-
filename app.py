@@ -1409,6 +1409,7 @@ if st.button("SCAN STOCKS", type="primary"):
                 ],
                 ignore_index=True
             )
+     
         else:
             st.warning(
                 "No stocks matched your price filter."
