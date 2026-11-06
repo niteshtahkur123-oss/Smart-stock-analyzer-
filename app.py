@@ -1237,11 +1237,17 @@ if st.button("SCAN STOCKS", type="primary"):
                 f"Qualifying Stocks: {len(df_result)}"
             )
 
-            st.dataframe(
-                df_result,
-                use_container_width=True,
-                hide_index=True
-            )
+            selected_stock = st.selectbox(
+"📊 Select Stock to View Candlestick Chart",
+df_result["Stock"].dropna().unique().tolist(),
+key="selected_chart_stock"
+)
+
+st.dataframe(
+df_result,
+use_container_width=True,
+hide_index=True
+)
 
             st.download_button(
                 "Download Scan CSV",
