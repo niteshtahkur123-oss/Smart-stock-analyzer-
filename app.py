@@ -1239,6 +1239,8 @@ if st.button("SCAN STOCKS", type="primary"):
             f"Qualifying Stocks: {len(df_result)}"
         )
 
+            if len(df_result) > 0:
+
         selected_stock = st.selectbox(
             "📊 Select Stock to View Candlestick Chart",
             df_result["Stock"].dropna().unique().tolist(),
@@ -1275,9 +1277,7 @@ if st.button("SCAN STOCKS", type="primary"):
         )
 
     else:
-        st.warning(
-            "No stocks matched your price filter."
-        )
+        st.warning("No stocks matched your price filter.")
 
         # Advanced backtesting report
         st.divider()
