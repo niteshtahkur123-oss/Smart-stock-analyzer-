@@ -150,7 +150,7 @@ def live_market_monitor():
         live_data = yf.download(
             tickers=symbols,
             period="5d",
-            interval="1m",
+            interval="5m",
             group_by="ticker",
             auto_adjust=False,
             progress=False,
@@ -283,7 +283,7 @@ def live_market_monitor():
                         else None
                     ),
 
-                    "Last 1m Volume": (
+                    "Last 5m Volume": (
                         int(volume)
                         if np.isfinite(volume)
                         else None
