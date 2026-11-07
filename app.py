@@ -597,6 +597,24 @@ def live_market_monitor():
             # CHART LAYOUT
             # ==================================
 
+            # SUPPORT AND RESISTANCE
+            resistance = chart_df["High"].tail(20).max()
+            support = chart_df["Low"].tail(20).min()
+
+            fig.add_hline(
+                y=resistance,
+                line_dash="dash",
+                line_color="orange",
+                annotation_text="RESISTANCE"
+            )
+
+            fig.add_hline(
+                y=support,
+                line_dash="dash",
+                line_color="blue",
+                annotation_text="SUPPORT"
+            )
+            
             fig.update_layout(
                 title=dict(
                     text=f"{selected_stock} | {latest_date.strftime('%d %b %Y')}",
