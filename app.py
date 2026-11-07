@@ -653,6 +653,7 @@ def live_market_monitor():
                 ticks="outside",
                 color="black",
                 title_font=dict(color="black"),
+                tickfont=dict(color="black", size=12),
             )
 
             fig.update_yaxes(
@@ -664,6 +665,7 @@ def live_market_monitor():
                 ticks="outside",
                 color="black",
                 title_font=dict(color="black"),
+                tickfont=dict(color="black", size=12),
                 tickprefix="₹",
                 tickformat=",.2f"
             )
