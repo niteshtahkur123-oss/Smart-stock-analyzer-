@@ -394,10 +394,7 @@ def live_market_monitor():
 
         else:
 
-            # ==================================
-            # EMA INDICATORS
-            # ==================================
-
+            # EMA calculation on full 5-day data
             chart_df["EMA9"] = (
                 chart_df["Close"].ewm(
                     span=9,
@@ -411,6 +408,27 @@ def live_market_monitor():
                     adjust=False
                 ).mean()
             )
+
+            # BUY crossover
+            chart_df["BUY"] = (
+                (chart_df["EMA9"] > chart_df["EMA20"]) &
+                (chart_df["EMA9"].shift(1) <=
+                 chart_df["EMA20"].shift(1))
+            )
+
+            # SELL crossover
+            chart_df["SELL"] = (
+                (chart_df["EMA9"] < chart_df["EMA20"]) &
+                (chart_df["EMA9"].shift(1) >=
+                 chart_df["EMA20"].shift(1))
+            )
+
+            # Filter only after calculating EMA and signals
+            latest_date = chart_df.index[-1].date()
+
+            chart_df = chart_df[
+                chart_df.index.date == latest_date
+            ].copy()
 
             # ==================================
             # BUY / SELL CONDITIONS
