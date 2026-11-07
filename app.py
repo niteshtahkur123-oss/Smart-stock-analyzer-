@@ -625,19 +625,19 @@ def live_market_monitor():
 
             fig.update_xaxes(
                 type="date",
+                title_text="Time",
                 tickformat="%H:%M",
                 tick0=f"{latest_date.isoformat()} 09:15:00",
                 dtick=600000,
                 showgrid=True,
-                gridcolor="#EEEEEE",
-                fixedrange=False
+                gridcolor="#EEEEEE"
             )
 
             fig.update_yaxes(
+                title_text="Price (₹)",
                 side="right",
                 showgrid=True,
-                gridcolor="#EEEEEE",
-                fixedrange=False
+                gridcolor="#EEEEEE"
             )
 
             st.plotly_chart(
