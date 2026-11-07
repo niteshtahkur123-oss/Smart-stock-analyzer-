@@ -206,24 +206,25 @@ def live_market_monitor():
                 )
 
                 if stock_df.empty:
-                    continue
+    continue
 
-                stock_frames[symbol] = stock_df.copy()
+# Convert candle timestamps to Indian Standard Time
+if stock_df.index.tz is None:
+    stock_df.index = stock_df.index.tz_localize(
+        "Asia/Kolkata"
+    )
+else:
+    stock_df.index = stock_df.index.tz_convert(
+        "Asia/Kolkata"
+    )
+
+stock_frames[symbol] = stock_df.copy()
 
                 current_price = float(
                     stock_df["Close"].iloc[-1]
                 )
 
                 timestamp = stock_df.index[-1]
-
-                if timestamp.tzinfo is None:
-                    timestamp = timestamp.tz_localize(
-                        "Asia/Kolkata"
-                    )
-                else:
-                    timestamp = timestamp.tz_convert(
-                        "Asia/Kolkata"
-                    )
 
                 dates = stock_df.index.date
 
