@@ -385,11 +385,12 @@ def live_market_monitor():
         chart_df.index = chart_df.index.tz_localize(None)
 
         chart_df = chart_df.sort_index()
-        # Show latest trading day only
-            latest_date = chart_df.index[-1].date()
 
-            chart_df = chart_df[
-                chart_df.index.date == latest_date
+        # Show latest trading day only
+        latest_date = chart_df.index[-1].date()
+
+        chart_df = chart_df[
+            chart_df.index.date == latest_date
         ]
 
         required = ["Open", "High", "Low", "Close"]
