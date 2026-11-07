@@ -370,6 +370,20 @@ def live_market_monitor():
         selected_symbol = selected_stock + ".NS"
 
         chart_df = stock_frames[selected_symbol].copy()
+       # Convert chart timestamps to IST
+if chart_df.index.tz is None:
+    chart_df.index = chart_df.index.tz_localize(
+        "Asia/Kolkata"
+    )
+else:
+    chart_df.index = chart_df.index.tz_convert(
+        "Asia/Kolkata"
+    )
+
+# Remove timezone info but preserve IST clock time
+chart_df.index = chart_df.index.tz_localize(None)
+
+chart_df = chart_df.sort_index()
 
         required = ["Open", "High", "Low", "Close"]
 
@@ -522,11 +536,18 @@ def live_market_monitor():
                 xaxis_rangeslider_visible=False
             )
 
-            fig.update_xaxes(
-                type="date",
-                tickformat="%H:%M",
-                nticks=12
-            )
+        fig.update_xaxes(
+    type="date",
+    tickformat="%H:%M",
+    nticks=12,
+    rangebreaks=[
+        dict(bounds=["sat", "mon"]),
+        dict(
+            bounds=[15.5, 9.25],
+            pattern="hour"
+        )
+    ]
+        )
 
             st.plotly_chart(
                 fig,
