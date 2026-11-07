@@ -652,7 +652,7 @@ def live_market_monitor():
                 linecolor="#888888",
                 ticks="outside"
                 color="black",
-title_font=dict(color="black"),
+                title_font=dict(color="black"),
             )
 
             fig.update_yaxes(
@@ -665,7 +665,7 @@ title_font=dict(color="black"),
                 tickprefix="₹",
                 tickformat=",.2f"
                 color="black",
-title_font=dict(color="black"),
+                title_font=dict(color="black"),
             )
 
             st.plotly_chart(
