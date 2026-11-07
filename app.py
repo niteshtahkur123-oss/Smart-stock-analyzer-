@@ -370,25 +370,21 @@ def live_market_monitor():
         selected_symbol = selected_stock + ".NS"
 
         chart_df = stock_frames[selected_symbol].copy()
-        
-            # Convert chart timestamps to IST
-         if chart_df.index.tz is None:
-                chart_df.index = chart_df.index.tz_localize(
-                    "Asia/Kolkata"
-                )
-            else:
-                chart_df.index = chart_df.index.tz_convert(
-                    "Asia/Kolkata"
-                )
 
-            # Preserve IST clock time for Plotly
-            chart_df.index = chart_df.index.tz_localize(None)
+        # Convert chart timestamps to IST
+        if chart_df.index.tz is None:
+            chart_df.index = chart_df.index.tz_localize(
+                "Asia/Kolkata"
+            )
+        else:
+            chart_df.index = chart_df.index.tz_convert(
+                "Asia/Kolkata"
+            )
 
-            chart_df = chart_df.sort_index()
-# Remove timezone info but preserve IST clock time
-chart_df.index = chart_df.index.tz_localize(None)
+        # Preserve IST clock time for Plotly
+        chart_df.index = chart_df.index.tz_localize(None)
 
-chart_df = chart_df.sort_index()
+        chart_df = chart_df.sort_index()
 
         required = ["Open", "High", "Low", "Close"]
 
