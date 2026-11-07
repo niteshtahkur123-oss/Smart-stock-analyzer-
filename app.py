@@ -539,8 +539,9 @@ def live_market_monitor():
 
             fig.update_xaxes(
                 type="date",
-                tickformat="%H:%M",
-                nticks=12,
+                tickformat="%d-%b %H:%M",
+                nticks=10,
+                tickangle=-45,
                 rangebreaks=[
                     dict(bounds=["sat", "mon"]),
                     dict(
