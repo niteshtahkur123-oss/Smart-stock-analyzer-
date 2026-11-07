@@ -370,6 +370,7 @@ def live_market_monitor():
         selected_symbol = selected_stock + ".NS"
 
         chart_df = stock_frames[selected_symbol].copy()
+        
                    # Convert chart timestamps to IST
             if chart_df.index.tz is None:
                 chart_df.index = chart_df.index.tz_localize(
