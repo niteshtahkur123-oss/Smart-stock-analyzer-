@@ -651,6 +651,8 @@ def live_market_monitor():
                 showline=True,
                 linecolor="#888888",
                 ticks="outside"
+                color="black",
+title_font=dict(color="black"),
             )
 
             fig.update_yaxes(
@@ -662,6 +664,8 @@ def live_market_monitor():
                 ticks="outside",
                 tickprefix="₹",
                 tickformat=",.2f"
+                color="black",
+title_font=dict(color="black"),
             )
 
             st.plotly_chart(
