@@ -205,7 +205,7 @@ def live_market_monitor():
                     subset=["Close"]
                 )
 
-                if stock_df.empty:
+if stock_df.empty:
     continue
 
 # Convert candle timestamps to Indian Standard Time
@@ -220,11 +220,11 @@ else:
 
 stock_frames[symbol] = stock_df.copy()
 
-                current_price = float(
-                    stock_df["Close"].iloc[-1]
-                )
+current_price = float(
+    stock_df["Close"].iloc[-1]
+)
 
-                timestamp = stock_df.index[-1]
+timestamp = stock_df.index[-1]
 
                 dates = stock_df.index.date
 
