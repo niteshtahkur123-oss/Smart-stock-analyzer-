@@ -596,6 +596,15 @@ def live_market_monitor():
                 line_color="blue",
                 annotation_text="SUPPORT"
             )
+
+            if "Volume" in chart_df.columns:
+                fig.add_trace(go.Bar(
+                    x=chart_df.index,
+                    y=chart_df["Volume"],
+                    name="Volume",
+                    yaxis="y2",
+                    opacity=0.25
+                ))
             
             fig.update_layout(
                 title=dict(
@@ -608,6 +617,13 @@ def live_market_monitor():
                 paper_bgcolor="white",
                 plot_bgcolor="white",
                 hovermode="x unified",
+                yaxis2=dict(
+                    overlaying="y",
+                    side="left",
+                    showticklabels=False,
+                    showgrid=False,
+                    range=[0, max(1, chart_df["Volume"].max() * 5)]
+                ),
                 dragmode="pan",
                 margin=dict(
                     l=10,
