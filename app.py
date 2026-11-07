@@ -537,18 +537,18 @@ def live_market_monitor():
                 xaxis_rangeslider_visible=False
             )
 
-        fig.update_xaxes(
-    type="date",
-    tickformat="%H:%M",
-    nticks=12,
-    rangebreaks=[
-        dict(bounds=["sat", "mon"]),
-        dict(
-            bounds=[15.5, 9.25],
-            pattern="hour"
-        )
-    ]
-        )
+            fig.update_xaxes(
+                type="date",
+                tickformat="%H:%M",
+                nticks=12,
+                rangebreaks=[
+                    dict(bounds=["sat", "mon"]),
+                    dict(
+                        bounds=[15.5, 9.25],
+                        pattern="hour"
+                    )
+                ]
+            )
 
             st.plotly_chart(
                 fig,
