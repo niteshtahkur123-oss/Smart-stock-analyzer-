@@ -650,7 +650,7 @@ def live_market_monitor():
                 showticklabels=True,
                 showline=True,
                 linecolor="#888888",
-                ticks="outside"
+                ticks="outside",
                 color="black",
                 title_font=dict(color="black"),
             )
