@@ -483,15 +483,19 @@ def live_market_monitor():
             fig = go.Figure()
 
             fig.add_trace(
-                go.Candlestick(
-                    x=chart_df.index,
-                    open=chart_df["Open"],
-                    high=chart_df["High"],
-                    low=chart_df["Low"],
-                    close=chart_df["Close"],
-                    name="5-Min Price"
-                )
-            )
+    go.Candlestick(
+        x=chart_df.index,
+        open=chart_df["Open"],
+        high=chart_df["High"],
+        low=chart_df["Low"],
+        close=chart_df["Close"],
+        name="Price",
+        increasing_line_color="#16A34A",
+        decreasing_line_color="#DC2626",
+        increasing_fillcolor="#16A34A",
+        decreasing_fillcolor="#DC2626"
+    )
+)
 
             # BUY SIGNAL MARKERS
             buy_points = chart_df[chart_df["BUY"]]
