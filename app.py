@@ -385,6 +385,12 @@ def live_market_monitor():
         chart_df.index = chart_df.index.tz_localize(None)
 
         chart_df = chart_df.sort_index()
+        # Show latest trading day only
+            latest_date = chart_df.index[-1].date()
+
+            chart_df = chart_df[
+                chart_df.index.date == latest_date
+        ]
 
         required = ["Open", "High", "Low", "Close"]
 
@@ -528,7 +534,7 @@ def live_market_monitor():
             # ==================================
 
             fig.update_layout(
-                title=f"{selected_stock} - LIVE 5 MIN",
+                title=f"{selected_stock} | {latest_date.strftime('%d-%b-%Y')}",
                 xaxis_title="Time",
                 yaxis_title="Price (₹)",
                 height=650,
@@ -539,15 +545,12 @@ def live_market_monitor():
 
             fig.update_xaxes(
                 type="date",
-                tickformat="%d-%b %H:%M",
-                nticks=10,
-                tickangle=-45,
+                tickformat="%H:%M",
+                tick0=f"{latest_date} 09:15:00",
+                dtick=600000,
+                tickangle=0,
                 rangebreaks=[
-                    dict(bounds=["sat", "mon"]),
-                    dict(
-                        bounds=[15.5, 9.25],
-                        pattern="hour"
-                    )
+                    dict(bounds=[15.5, 9.25], pattern="hour")
                 ]
             )
 
