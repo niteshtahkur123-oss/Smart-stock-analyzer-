@@ -506,7 +506,7 @@ def live_market_monitor():
                 y=buy_points["Low"] * 0.998,
                 mode="text",
                 text=["BUY"] * len(buy_points),
-                textfont=dict(color="green", size=13),
+                textfont=dict(color="black", size=13),
                 name="BUY"
             ))
 
@@ -515,7 +515,7 @@ def live_market_monitor():
                 y=sell_points["High"] * 1.002,
                 mode="text",
                 text=["SELL"] * len(sell_points),
-                textfont=dict(color="red", size=13),
+                textfont=dict(color="black", size=13),
                 name="SELL"
             ))          
 
