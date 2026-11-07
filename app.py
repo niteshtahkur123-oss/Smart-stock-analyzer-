@@ -499,43 +499,25 @@ def live_market_monitor():
 
             # BUY SIGNAL MARKERS
             buy_points = chart_df[chart_df["BUY"]]
-
-            fig.add_trace(
-                go.Scatter(
-                    x=buy_points.index,
-                    y=buy_points["Low"] * 0.998,
-                    mode="markers+text",
-                    name="BUY",
-                    text=["BUY"] * len(buy_points),
-                    textposition="bottom center",
-                    marker=dict(
-                        symbol="triangle-up",
-                        size=16,
-                        color="green",
-                        line=dict(width=2, color="white")
-                    )
-                )
-            )
-
-            # SELL SIGNAL MARKERS
             sell_points = chart_df[chart_df["SELL"]]
 
-            fig.add_trace(
-                go.Scatter(
-                    x=sell_points.index,
-                    y=sell_points["High"] * 1.002,
-                    mode="markers+text",
-                    name="SELL",
-                    text=["SELL"] * len(sell_points),
-                    textposition="top center",
-                    marker=dict(
-                        symbol="triangle-down",
-                        size=16,
-                        color="red",
-                        line=dict(width=2, color="white")
-                    )
-                )
-            )            
+            fig.add_trace(go.Scatter(
+                x=buy_points.index,
+                y=buy_points["Low"] * 0.998,
+                mode="text",
+                text=["BUY"] * len(buy_points),
+                textfont=dict(color="green", size=13),
+                name="BUY"
+            ))
+
+            fig.add_trace(go.Scatter(
+                x=sell_points.index,
+                y=sell_points["High"] * 1.002,
+                mode="text",
+                text=["SELL"] * len(sell_points),
+                textfont=dict(color="red", size=13),
+                name="SELL"
+            ))          
 
             # EMA 9
 
