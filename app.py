@@ -598,24 +598,46 @@ def live_market_monitor():
             # ==================================
 
             fig.update_layout(
-                title=f"{selected_stock} | {latest_date.strftime('%d-%b-%Y')}",
-                xaxis_title="Time",
-                yaxis_title="Price (₹)",
+                title=dict(
+                    text=f"{selected_stock} | {latest_date.strftime('%d %b %Y')}",
+                    x=0.02,
+                    font=dict(size=20, color="#222222")
+                ),
+                template="plotly_white",
                 height=650,
+                paper_bgcolor="white",
+                plot_bgcolor="white",
                 hovermode="x unified",
                 dragmode="pan",
+                margin=dict(
+                    l=10,
+                    r=55,
+                    t=65,
+                    b=35
+                ),
+                legend=dict(
+                    orientation="h",
+                    y=1.02,
+                    x=0
+                ),
                 xaxis_rangeslider_visible=False
             )
 
             fig.update_xaxes(
                 type="date",
                 tickformat="%H:%M",
-                tick0=f"{latest_date} 09:15:00",
+                tick0=f"{latest_date.isoformat()} 09:15:00",
                 dtick=600000,
-                tickangle=0,
-                rangebreaks=[
-                    dict(bounds=[15.5, 9.25], pattern="hour")
-                ]
+                showgrid=True,
+                gridcolor="#EEEEEE",
+                fixedrange=False
+            )
+
+            fig.update_yaxes(
+                side="right",
+                showgrid=True,
+                gridcolor="#EEEEEE",
+                fixedrange=False
             )
 
             st.plotly_chart(
