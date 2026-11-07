@@ -386,13 +386,6 @@ def live_market_monitor():
 
         chart_df = chart_df.sort_index()
 
-        # Show latest trading day only
-        latest_date = chart_df.index[-1].date()
-
-        chart_df = chart_df[
-            chart_df.index.date == latest_date
-        ]
-
         required = ["Open", "High", "Low", "Close"]
 
         if not all(c in chart_df.columns for c in required):
@@ -434,6 +427,14 @@ def live_market_monitor():
                 (chart_df["EMA9"].shift(1) >=
                  chart_df["EMA20"].shift(1))
             )
+
+            # Keep full data for EMA calculation,
+            # but display only latest trading day
+            latest_date = chart_df.index[-1].date()
+
+            chart_df = chart_df[
+                chart_df.index.date == latest_date
+            ] 
 
             # ==================================
             # LATEST SIGNAL
