@@ -662,10 +662,10 @@ def live_market_monitor():
                 showline=True,
                 linecolor="#888888",
                 ticks="outside",
-                tickprefix="₹",
-                tickformat=",.2f"
                 color="black",
                 title_font=dict(color="black"),
+                tickprefix="₹",
+                tickformat=",.2f"
             )
 
             st.plotly_chart(
