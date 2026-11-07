@@ -598,12 +598,19 @@ def live_market_monitor():
             )
 
             if "Volume" in chart_df.columns:
+                volume_colors = np.where(
+                    chart_df["Close"] >= chart_df["Open"],
+                    "green",
+                    "red"
+                )
+
                 fig.add_trace(go.Bar(
                     x=chart_df.index,
                     y=chart_df["Volume"],
                     name="Volume",
                     yaxis="y2",
-                    opacity=0.25
+                    marker=dict(color=volume_colors),
+                    opacity=0.45
                 ))
             
             fig.update_layout(
