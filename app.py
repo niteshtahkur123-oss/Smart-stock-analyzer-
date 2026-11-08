@@ -715,6 +715,7 @@ yaxis2=dict(
                 title_font=dict(color="black"),
                 tickfont=dict(color="black", size=12),
                 tickprefix="₹",
+                domain=[0.25, 1.0],
                 tickformat=",.2f"
             )
 
