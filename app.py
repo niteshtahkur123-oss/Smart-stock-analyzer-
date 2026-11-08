@@ -558,6 +558,22 @@ def live_market_monitor():
                 )
             )
 
+            buy_points = chart_df[chart_df["BUY"]]
+
+            fig.add_trace(go.Scatter(
+                x=buy_points.index,
+                y=buy_points["Low"] * 0.998,
+                mode="markers+text",
+                name="BUY",
+                text=["BUY"] * len(buy_points),
+                textposition="bottom center",
+                marker=dict(
+                    symbol="triangle-up",
+                    size=15,
+                    color="green"
+                )
+            ))
+            
             # SELL MARKERS
 
             sell_points = chart_df[
