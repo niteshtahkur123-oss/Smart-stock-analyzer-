@@ -146,7 +146,6 @@ def live_market_monitor():
     f"🔄 App Refresh Time: "
     f"{pd.Timestamp.now(tz='Asia/Kolkata').strftime('%H:%M:%S')}"
     )
-    )
 
     # CANDLE TIMEFRAME SELECTOR
     timeframe_label = st.selectbox(
