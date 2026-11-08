@@ -869,10 +869,11 @@ yaxis2=dict(
                     "displaylogo": False,
                     "responsive": True,
                     "modeBarButtonsToAdd": [
-                        "zoomIn2d",
-                        "zoomOut2d",
-                        "resetScale2d"
-                    ],
+    "zoomIn2d",
+    "zoomOut2d",
+    "pan2d",
+    "resetScale2d"
+],
                     "doubleClick": "reset"
                 }
             )
