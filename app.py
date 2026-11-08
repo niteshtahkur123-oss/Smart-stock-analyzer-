@@ -820,9 +820,9 @@ yaxis2=dict(
                 tickformat="%H:%M",
                 tickangle=0,
                 dtick=(
-    600000 if selected_interval in ["1m", "5m"]
-    else 1800000
-),
+                    600000 if selected_interval in ["1m", "5m"]
+                    else 1800000
+                ),
                 tick0=f"{latest_date.strftime('%Y-%m-%d')} 09:15:00",
                 showticklabels=True,
                 showline=True,
@@ -830,13 +830,11 @@ yaxis2=dict(
                 ticks="outside",
                 color="black",
                 showspikes=True,
-spikemode="across",
+                spikemode="across",
+                spikesnap="cursor",
                 title_font=dict(color="black"),
                 tickfont=dict(color="black", size=12),
             )
-            showspikes=True,
-spikemode="across",
-spikesnap="cursor",
 
             fig.update_yaxes(
                 title=dict(text="PRICE (₹)"),
@@ -846,15 +844,15 @@ spikesnap="cursor",
                 linecolor="#888888",
                 ticks="outside",
                 color="black",
+                showspikes=True,
+                spikemode="across",
+                spikesnap="cursor",
                 title_font=dict(color="black"),
                 tickfont=dict(color="black", size=12),
                 tickprefix="₹",
                 domain=[0.25, 1.0],
                 tickformat=",.2f"
             )
-           showspikes=True,
-spikemode="across",
-spikesnap="cursor",
 
             st.plotly_chart(
                 fig,
