@@ -141,10 +141,11 @@ st.caption(
 def live_market_monitor():
 
     st.caption(
-        "Last Screen Update: "
-        + pd.Timestamp.now(tz="Asia/Kolkata").strftime(
-            "%d-%m-%Y %H:%M:%S"
-        )
+    f"📊 Last Candle Data Time: "
+    f"{chart_df.index[-1].strftime('%d-%b-%Y %H:%M:%S')} | "
+    f"🔄 App Refresh Time: "
+    f"{pd.Timestamp.now(tz='Asia/Kolkata').strftime('%H:%M:%S')}"
+    )
     )
 
     # CANDLE TIMEFRAME SELECTOR
