@@ -617,17 +617,18 @@ def live_market_monitor():
                     high=chart_df["High"],
                     low=chart_df["Low"],
                     close=chart_df["Close"],
+                    customdata=chart_df["Volume"],
                     text=chart_df["Volume"],
                     name=f"{timeframe_label} Price",
                     hovertemplate=(
-                        "Time: %{x|%H:%M}<br>"
-                        "Open: ₹%{open:.2f}<br>"
-                        "High: ₹%{high:.2f}<br>"
-                        "Low: ₹%{low:.2f}<br>"
-                        "Close: ₹%{close:.2f}<br>"
-"Volume: %{text:,.0f}"
-                        "<extra></extra>"
-                    ),
+    "Time: %{x|%H:%M}<br>"
+    "Open: ₹%{open:.2f}<br>"
+    "High: ₹%{high:.2f}<br>"
+    "Low: ₹%{low:.2f}<br>"
+    "Close: ₹%{close:.2f}<br>"
+    "Volume: %{customdata:,.0f}"
+    "<extra></extra>"
+),
                     increasing_line_color="#16A34A",
                     decreasing_line_color="#DC2626",
                     increasing_fillcolor="#16A34A",
