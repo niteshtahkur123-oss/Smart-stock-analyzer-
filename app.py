@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
+import io
+import wave
 import plotly.graph_objects as go
 from datetime import date, datetime
 
@@ -463,11 +465,15 @@ def live_market_monitor():
             buy_points = chart_df[chart_df["BUY"]]
             sell_points = chart_df[chart_df["SELL"]]
 
+            active_signal_key = None
+
             if not buy_points.empty and (
                 sell_points.empty or
                 buy_points.index[-1] > sell_points.index[-1]
             ):
                 last_buy = buy_points.iloc[-1]
+
+                active_signal_key = f"BUY_{buy_points.index[-1]}"
 
                 st.success(
                     f"🟢 BUY SIGNAL | Price: ₹{last_buy['Close']:.2f}"
@@ -476,6 +482,8 @@ def live_market_monitor():
             elif not sell_points.empty:
 
                 last_sell = sell_points.iloc[-1]
+
+                active_signal_key = f"SELL_{sell_points.index[-1]}"
 
                 st.error(
                     f"🔴 SELL SIGNAL | Price: ₹{last_sell['Close']:.2f}"
@@ -489,6 +497,50 @@ def live_market_monitor():
                     st.info("EMA TREND: BULLISH")
                 else:
                     st.warning("EMA TREND: BEARISH")
+
+            # SOUND ALERT - NEW SIGNAL ONLY
+            if "last_live_signal_key" not in st.session_state:
+
+                st.session_state["last_live_signal_key"] = active_signal_key
+
+            elif (
+                active_signal_key is not None
+                and active_signal_key != st.session_state["last_live_signal_key"]
+            ):
+
+                st.session_state["last_live_signal_key"] = active_signal_key
+
+                sample_rate = 22050
+                duration = 0.35
+
+                t = np.linspace(
+                    0,
+                    duration,
+                    int(sample_rate * duration),
+                    endpoint=False
+                )
+
+                tone = (
+                    0.25 * np.sin(2 * np.pi * 880 * t) * 32767
+                ).astype(np.int16)
+
+                audio_buffer = io.BytesIO()
+
+                with wave.open(audio_buffer, "wb") as audio_file:
+                    audio_file.setnchannels(1)
+                    audio_file.setsampwidth(2)
+                    audio_file.setframerate(sample_rate)
+                    audio_file.writeframes(tone.tobytes())
+
+                st.audio(
+                    audio_buffer.getvalue(),
+                    format="audio/wav",
+                    autoplay=True
+                )
+
+                st.toast(
+                    "🔔 NEW BUY / SELL SIGNAL DETECTED!"
+                )
 
             # ==================================
             # BUY / SELL CONDITIONS
