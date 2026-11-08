@@ -479,7 +479,17 @@ def live_market_monitor():
             # ==================================
             # CANDLESTICK CHART
             # ==================================
+            # LIVE MARKET METRICS
+            current_price = float(chart_df["Close"].iloc[-1])
+            day_high = float(chart_df["High"].max())
+            day_low = float(chart_df["Low"].min())
 
+            m1, m2, m3 = st.columns(3)
+
+            m1.metric("LTP", f"₹{current_price:.2f}")
+            m2.metric("DAY HIGH", f"₹{day_high:.2f}")
+            m3.metric("DAY LOW", f"₹{day_low:.2f}")
+            
             fig = go.Figure()
 
             # CANDLESTICK CHART
