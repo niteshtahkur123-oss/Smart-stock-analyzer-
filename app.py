@@ -792,7 +792,6 @@ def live_market_monitor():
                 height=650,
                 paper_bgcolor="white",
                 plot_bgcolor="white",
-                hovermode="x unified",
 yaxis2=dict(
     domain=[0, 0.20],
     overlaying="y",
