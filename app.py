@@ -850,7 +850,10 @@ yaxis2=dict(
                 title=dict(text="TIME"),
                 tickformat="%H:%M",
                 tickangle=0,
-                nticks=12,
+                dtick=(
+    600000 if selected_interval in ["1m", "5m"]
+    else 1800000
+),
                 showticklabels=True,
                 showline=True,
                 linecolor="#888888",
