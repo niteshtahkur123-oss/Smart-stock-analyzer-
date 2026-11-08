@@ -489,6 +489,29 @@ def live_market_monitor():
             m1.metric("LTP", f"₹{current_price:.2f}")
             m2.metric("DAY HIGH", f"₹{day_high:.2f}")
             m3.metric("DAY LOW", f"₹{day_low:.2f}")
+
+            # PRICE CHANGE
+            previous_close = float(chart_df["Close"].iloc[0])
+
+            price_change = current_price - previous_close
+
+            change_pct = (
+                (price_change / previous_close) * 100
+                if previous_close != 0 else 0
+            )
+
+            m4, m5 = st.columns(2)
+
+            m4.metric(
+                "PRICE CHANGE",
+                f"₹{price_change:.2f}",
+                f"{change_pct:.2f}%"
+            )
+
+            m5.metric(
+                "MARKET STATUS",
+                "BULLISH" if price_change >= 0 else "BEARISH"
+            )
             
             fig = go.Figure()
 
