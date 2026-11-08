@@ -482,10 +482,32 @@ def live_market_monitor():
 
             fig = go.Figure()
 
+            # CANDLESTICK CHART
             fig.add_trace(
-                
+                go.Candlestick(
+                    x=chart_df.index,
+                    open=chart_df["Open"],
+                    high=chart_df["High"],
+                    low=chart_df["Low"],
+                    close=chart_df["Close"],
+                    name="5-Min Price",
+                    hovertemplate=(
+                        "Time: %{x|%H:%M}<br>"
+                        "Open: ₹%{open:.2f}<br>"
+                        "High: ₹%{high:.2f}<br>"
+                        "Low: ₹%{low:.2f}<br>"
+                        "Close: ₹%{close:.2f}"
+                        "<extra></extra>"
+                    ),
+                    increasing_line_color="#16A34A",
+                    decreasing_line_color="#DC2626",
+                    increasing_fillcolor="#16A34A",
+                    decreasing_fillcolor="#DC2626"
+                )
+            )
+
             # CURRENT MARKET PRICE LINE
-            current_price = float(chart_df["Close"].iloc[-1]),
+            current_price = float(chart_df["Close"].iloc[-1])
 
             fig.add_hline(
                 y=current_price,
@@ -495,27 +517,6 @@ def live_market_monitor():
                 annotation_text=f"LTP ₹{current_price:.2f}",
                 annotation_position="right"
             )
-    go.Candlestick(
-        x=chart_df.index,
-        open=chart_df["Open"],
-        high=chart_df["High"],
-        low=chart_df["Low"],
-        close=chart_df["Close"],
-        name="5-Min Price",
-        hovertemplate=(
-            "Time: %{x|%H:%M}<br>"
-            "Open: ₹%{open:.2f}<br>"
-            "High: ₹%{high:.2f}<br>"
-            "Low: ₹%{low:.2f}<br>"
-            "Close: ₹%{close:.2f}"
-            "<extra></extra>"
-        ),
-        increasing_line_color="#16A34A",
-        decreasing_line_color="#DC2626",
-        increasing_fillcolor="#16A34A",
-        decreasing_fillcolor="#DC2626"
-    )
-)
             # BUY SIGNAL MARKERS
             buy_points = chart_df[chart_df["BUY"]]
             sell_points = chart_df[chart_df["SELL"]]
