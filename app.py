@@ -423,12 +423,43 @@ def live_market_monitor():
                  chart_df["EMA20"].shift(1))
             )
 
-            # Filter only after calculating EMA and signals
+            # Filter only latest trading day
             latest_date = chart_df.index[-1].date()
 
             chart_df = chart_df[
                 chart_df.index.date == latest_date
             ].copy()
+
+            # LATEST BUY / SELL SIGNAL
+            buy_points = chart_df[chart_df["BUY"]]
+            sell_points = chart_df[chart_df["SELL"]]
+
+            if not buy_points.empty and (
+                sell_points.empty or
+                buy_points.index[-1] > sell_points.index[-1]
+            ):
+                last_buy = buy_points.iloc[-1]
+
+                st.success(
+                    f"🟢 BUY SIGNAL | Price: ₹{last_buy['Close']:.2f}"
+                )
+
+            elif not sell_points.empty:
+
+                last_sell = sell_points.iloc[-1]
+
+                st.error(
+                    f"🔴 SELL SIGNAL | Price: ₹{last_sell['Close']:.2f}"
+                )
+
+            else:
+
+                latest = chart_df.iloc[-1]
+
+                if latest["EMA9"] > latest["EMA20"]:
+                    st.info("EMA TREND: BULLISH")
+                else:
+                    st.warning("EMA TREND: BEARISH")
 
             # ==================================
             # BUY / SELL CONDITIONS
