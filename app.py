@@ -664,19 +664,16 @@ def live_market_monitor():
                 paper_bgcolor="white",
                 plot_bgcolor="white",
                 hovermode="x unified",
-                yaxis2=dict(
-                    overlaying="y",
-                    side="left",
-                    showticklabels=False,
-                    showgrid=False,
-                    range=[0, max(1, chart_df["Volume"].max() * 5)]
-                ),
-                yaxis2=dict(
-                    domain=[0, 0.20],
-                    showticklabels=False,
-                    title="",
-                    anchor="x"
-                ),
+yaxis2=dict(
+    domain=[0, 0.20],
+    overlaying="y",
+    side="left",
+    showticklabels=False,
+    showgrid=False,
+    title="",
+    anchor="x",
+    range=[0, max(1, chart_df["Volume"].max() * 5)]
+),
                 dragmode="pan",
                 margin=dict(
                     l=10,
