@@ -578,6 +578,19 @@ def live_market_monitor():
                     use_container_width=True,
                     hide_index=True
                 )
+                
+                # DOWNLOAD SIGNAL HISTORY
+                history_csv = history_df.iloc[::-1].to_csv(
+                    index=False
+                ).encode("utf-8")
+
+                st.download_button(
+                    label="📥 Download Signal History CSV",
+                    data=history_csv,
+                    file_name="Live_Signal_History.csv",
+                    mime="text/csv",
+                    key="download_live_signal_history"
+                )
 
             else:
                 st.info("No BUY / SELL signals recorded yet.")
