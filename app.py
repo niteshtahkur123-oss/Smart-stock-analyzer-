@@ -512,6 +512,26 @@ def live_market_monitor():
             ):
 
                 st.session_state["last_live_signal_key"] = active_signal_key
+                signal_type = active_signal_key.split("_")[0]
+
+                signal_price = (
+                    float(last_buy["Close"])
+                    if signal_type == "BUY"
+                    else float(last_sell["Close"])
+                )
+
+                st.session_state["live_signal_history"].append({
+                    "Stock": selected_stock,
+                    "Signal": signal_type,
+                    "Price": round(signal_price, 2),
+                    "Date": pd.Timestamp.now(
+                        tz="Asia/Kolkata"
+                    ).strftime("%d-%m-%Y"),
+                    "Time": pd.Timestamp.now(
+                        tz="Asia/Kolkata"
+                    ).strftime("%H:%M:%S"),
+                    "Timeframe": timeframe_label
+                })
 
                 sample_rate = 22050
                 duration = 0.35
