@@ -144,6 +144,8 @@ def live_market_monitor():
 
     if "live_signal_history" not in st.session_state:
         st.session_state["live_signal_history"] = []
+    if "live_open_positions" not in st.session_state:
+    st.session_state["live_open_positions"] = {}
         
     # CANDLE TIMEFRAME SELECTOR
     timeframe_label = st.selectbox(
