@@ -552,6 +552,27 @@ def live_market_monitor():
                 change_delta
             )
             metric_cols[4].metric("MARKET STATUS", market_status)
+
+            # LATEST CANDLE DETAILS
+            last_candle_time = chart_df.index[-1].strftime("%H:%M")
+
+            last_volume = (
+                int(chart_df["Volume"].iloc[-1])
+                if "Volume" in chart_df.columns
+                else 0
+            )
+
+            c6, c7 = st.columns(2)
+
+            c6.metric(
+                "LAST CANDLE TIME",
+                last_candle_time
+            )
+
+            c7.metric(
+                "5-MIN VOLUME",
+                f"{last_volume:,}"
+            )
             
             fig = go.Figure()
 
