@@ -851,21 +851,21 @@ spikemode="across",
             )
 
             st.plotly_chart(
-    fig,
-    use_container_width=True,
-    config={
-        "scrollZoom": True,
-        "doubleClick": "reset",
-        "displayModeBar": True,
-        "displaylogo": False,
-        "responsive": True,
-        "modeBarButtonsToAdd": [
-            "zoomIn2d",
-            "zoomOut2d",
-            "resetScale2d"
-        ]
-    }
-)
+                fig,
+                use_container_width=True,
+                config={
+                    "scrollZoom": True,
+                    "displayModeBar": True,
+                    "displaylogo": False,
+                    "responsive": True,
+                    "modeBarButtonsToAdd": [
+                        "zoomIn2d",
+                        "zoomOut2d",
+                        "resetScale2d"
+                    ],
+                    "doubleClick": "reset"
+                }
+            )
     except Exception as e:
 
         st.error(
