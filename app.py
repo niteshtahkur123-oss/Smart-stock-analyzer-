@@ -142,11 +142,16 @@ st.caption(
 @st.fragment(run_every="15s")
 def live_market_monitor():
 
-    if "live_open_positions" not in st.session_state:
-        st.session_state["live_open_positions"] = {}
+    # INITIALIZE LIVE SESSION DATA
+
+    if "live_signal_history" not in st.session_state:
+        st.session_state["live_signal_history"] = []
 
     if "live_open_positions" not in st.session_state:
         st.session_state["live_open_positions"] = {}
+
+    if "last_live_signal_key" not in st.session_state:
+        st.session_state["last_live_signal_key"] = None
         
     # CANDLE TIMEFRAME SELECTOR
     timeframe_label = st.selectbox(
