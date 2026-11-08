@@ -671,7 +671,7 @@ def live_market_monitor():
                     showgrid=False,
                     range=[0, max(1, chart_df["Volume"].max() * 5)]
                 ),
-                yaxis2=dict(
+yaxis2=dict(
     domain=[0, 0.20],
     showticklabels=False,
     title="",
