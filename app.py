@@ -564,6 +564,23 @@ def live_market_monitor():
                 st.toast(
                     "🔔 NEW BUY / SELL SIGNAL DETECTED!"
                 )
+            # LIVE BUY / SELL SIGNAL HISTORY
+            st.subheader("📋 LIVE SIGNAL HISTORY")
+
+            if st.session_state["live_signal_history"]:
+
+                history_df = pd.DataFrame(
+                    st.session_state["live_signal_history"]
+                )
+
+                st.dataframe(
+                    history_df.iloc[::-1],
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+            else:
+                st.info("No BUY / SELL signals recorded yet.")
 
             # ==================================
             # BUY / SELL CONDITIONS
