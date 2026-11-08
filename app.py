@@ -132,12 +132,12 @@ st.header("📡 Live Market Monitor")
 
 st.caption(
     "Source: Yahoo Finance | "
-    "Auto Refresh: 10 Seconds | "
+    "Auto Refresh: 15 Seconds | "
     "Indicative Data Only"
 )
 
 
-@st.fragment(run_every="10s")
+@st.fragment(run_every="15s")
 def live_market_monitor():
 
     st.caption(
@@ -147,12 +147,28 @@ def live_market_monitor():
         )
     )
 
+    # CANDLE TIMEFRAME SELECTOR
+    timeframe_label = st.selectbox(
+        "Select Candle Timeframe",
+        ["1 Minute", "5 Minutes", "15 Minutes"],
+        index=1,
+        key="live_candle_timeframe"
+    )
+
+    timeframe_map = {
+        "1 Minute": "1m",
+        "5 Minutes": "5m",
+        "15 Minutes": "15m"
+    }
+
+    selected_interval = timeframe_map[timeframe_label]
+
     try:
 
         live_data = yf.download(
             tickers=symbols,
             period="5d",
-            interval="5m",
+            interval=selected_interval,
             group_by="ticker",
             auto_adjust=False,
             progress=False,
