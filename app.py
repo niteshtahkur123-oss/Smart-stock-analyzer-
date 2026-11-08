@@ -423,6 +423,19 @@ def live_market_monitor():
                  chart_df["EMA20"].shift(1))
             )
 
+            # PREVIOUS TRADING DAY CLOSE
+            latest_date = chart_df.index[-1].date()
+
+            previous_day_data = chart_df[
+                chart_df.index.date < latest_date
+            ]
+
+            previous_close = (
+                float(previous_day_data["Close"].iloc[-1])
+                if not previous_day_data.empty
+                else None
+            )
+
             # Filter only latest trading day
             latest_date = chart_df.index[-1].date()
 
@@ -522,7 +535,19 @@ def live_market_monitor():
             m3.metric("DAY LOW", f"₹{day_low:.2f}")
 
             # PRICE CHANGE
-            previous_close = float(chart_df["Close"].iloc[0])
+            if previous_close is not None and previous_close != 0:
+
+                price_change = current_price - previous_close
+                change_pct = (price_change / previous_close) * 100
+
+                m4.metric(
+                    "PRICE CHANGE",
+                    f"₹{price_change:.2f}",
+                    f"{change_pct:.2f}%"
+                )
+
+            else:
+                m4.metric("PRICE CHANGE", "N/A")
 
             price_change = current_price - previous_close
 
