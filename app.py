@@ -586,7 +586,7 @@ def live_market_monitor():
             )
 
             c7.metric(
-                "5-MIN VOLUME",
+                f"{timeframe_label.upper()} VOLUME",
                 f"{last_volume:,}"
             )
 
@@ -617,7 +617,7 @@ def live_market_monitor():
                     high=chart_df["High"],
                     low=chart_df["Low"],
                     close=chart_df["Close"],
-                    name="5-Min Price",
+                    name=f"{timeframe_label} Price",
                     hovertemplate=(
                         "Time: %{x|%H:%M}<br>"
                         "Open: ₹%{open:.2f}<br>"
@@ -811,7 +811,7 @@ def live_market_monitor():
             
             fig.update_layout(
                 title=dict(
-                    text=f"{selected_stock} | {latest_date.strftime('%d %b %Y')}",
+                    text=f"{selected_stock} | {latest_date.strftime('%d %b %Y')} | {timeframe_label.upper()}",
                     x=0.02,
                     font=dict(size=20, color="#222222")
                 ),
