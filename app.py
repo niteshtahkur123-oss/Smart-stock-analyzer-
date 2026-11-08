@@ -568,6 +568,33 @@ def live_market_monitor():
                 "MARKET STATUS",
                 "BULLISH" if price_change >= 0 else "BEARISH"
             )
+
+            # PRICE CHANGE
+            m4, m5 = st.columns(2)
+
+            if previous_close is not None and previous_close != 0:
+
+                price_change = current_price - previous_close
+
+                change_pct = (
+                    price_change / previous_close
+                ) * 100
+
+                m4.metric(
+                    "PRICE CHANGE",
+                    f"₹{price_change:.2f}",
+                    f"{change_pct:.2f}%"
+                )
+
+                m5.metric(
+                    "MARKET STATUS",
+                    "BULLISH" if price_change >= 0 else "BEARISH"
+                )
+
+            else:
+
+                m4.metric("PRICE CHANGE", "N/A")
+                m5.metric("MARKET STATUS", "N/A")
             
             fig = go.Figure()
 
