@@ -829,6 +829,8 @@ yaxis2=dict(
                 linecolor="#888888",
                 ticks="outside",
                 color="black",
+                showspikes=True,
+spikemode="across",
                 title_font=dict(color="black"),
                 tickfont=dict(color="black", size=12),
             )
