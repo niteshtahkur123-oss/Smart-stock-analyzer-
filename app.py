@@ -483,6 +483,17 @@ def live_market_monitor():
             fig = go.Figure()
 
             fig.add_trace(
+            # CURRENT MARKET PRICE LINE
+            current_price = float(chart_df["Close"].iloc[-1])
+
+            fig.add_hline(
+                y=current_price,
+                line_dash="dot",
+                line_color="#2563EB",
+                line_width=2,
+                annotation_text=f"LTP ₹{current_price:.2f}",
+                annotation_position="right"
+            )
     go.Candlestick(
         x=chart_df.index,
         open=chart_df["Open"],
