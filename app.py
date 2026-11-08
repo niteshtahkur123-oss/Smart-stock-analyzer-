@@ -854,6 +854,7 @@ yaxis2=dict(
     600000 if selected_interval in ["1m", "5m"]
     else 1800000
 ),
+                tick0=f"{latest_date.strftime('%Y-%m-%d')} 09:15:00",
                 showticklabels=True,
                 showline=True,
                 linecolor="#888888",
