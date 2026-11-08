@@ -493,7 +493,7 @@ def live_market_monitor():
                 line_width=2,
                 annotation_text=f"LTP ₹{current_price:.2f}",
                 annotation_position="right"
-            )
+            ),
     go.Candlestick(
         x=chart_df.index,
         open=chart_df["Open"],
