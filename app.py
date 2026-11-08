@@ -573,6 +573,23 @@ def live_market_monitor():
                 "5-MIN VOLUME",
                 f"{last_volume:,}"
             )
+
+            # VOLUME STRENGTH
+            avg_volume = (
+                chart_df["Volume"].iloc[:-1].tail(20).mean()
+            )
+
+            if avg_volume > 0:
+                volume_ratio = last_volume / avg_volume
+            else:
+                volume_ratio = 0
+
+            st.metric(
+                "VOLUME STRENGTH",
+                f"{volume_ratio:.2f}x",
+                "HIGH VOLUME" if volume_ratio >= 1.5
+                else "NORMAL VOLUME"
+            )
             
             fig = go.Figure()
 
