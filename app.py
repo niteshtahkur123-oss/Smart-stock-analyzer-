@@ -596,6 +596,14 @@ def live_market_monitor():
                 chart_df["SELL"]
             ]
 
+            fig.add_trace(go.Bar(
+                x=chart_df.index,
+                y=chart_df["Volume"],
+                name="VOLUME",
+                marker_color="lightblue",
+                yaxis="y2"
+            ))
+            
             fig.add_trace(
                 go.Scatter(
                     x=sell_points.index,
@@ -662,6 +670,12 @@ def live_market_monitor():
                     showticklabels=False,
                     showgrid=False,
                     range=[0, max(1, chart_df["Volume"].max() * 5)]
+                ),
+                yaxis2=dict(
+                    domain=[0, 0.20],
+                    showticklabels=False,
+                    title="",
+                    anchor="x"
                 ),
                 dragmode="pan",
                 margin=dict(
