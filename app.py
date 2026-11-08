@@ -649,7 +649,11 @@ def live_market_monitor():
                     y=chart_df["Volume"],
                     name="Volume",
                     yaxis="y2",
-                    marker=dict(color=volume_colors),
+                    marker_color=[
+    "green" if chart_df["Close"].iloc[i] >= chart_df["Open"].iloc[i]
+    else "red"
+    for i in range(len(chart_df))
+],
                     opacity=0.45
                 ))
             
