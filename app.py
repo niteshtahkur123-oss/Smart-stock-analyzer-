@@ -140,13 +140,6 @@ st.caption(
 @st.fragment(run_every="15s")
 def live_market_monitor():
 
-    st.caption(
-    f"📊 Last Candle Data Time: "
-    f"{chart_df.index[-1].strftime('%d-%b-%Y %H:%M:%S')} | "
-    f"🔄 App Refresh Time: "
-    f"{pd.Timestamp.now(tz='Asia/Kolkata').strftime('%H:%M:%S')}"
-    )
-
     # CANDLE TIMEFRAME SELECTOR
     timeframe_label = st.selectbox(
         "Select Candle Timeframe",
@@ -458,6 +451,13 @@ def live_market_monitor():
             chart_df = chart_df[
                 chart_df.index.date == latest_date
             ].copy()
+
+            st.caption(
+        f"📊 Last Candle Data Time: "
+        f"{chart_df.index[-1].strftime('%d-%b-%Y %H:%M:%S')} | "
+        f"🔄 App Refresh Time: "
+        f"{pd.Timestamp.now(tz='Asia/Kolkata').strftime('%H:%M:%S')}"
+            )
 
             # LATEST BUY / SELL SIGNAL
             buy_points = chart_df[chart_df["BUY"]]
