@@ -528,73 +528,30 @@ def live_market_monitor():
             day_high = float(chart_df["High"].max())
             day_low = float(chart_df["Low"].min())
 
-            m1, m2, m3 = st.columns(3)
-
-            m1.metric("LTP", f"₹{current_price:.2f}")
-            m2.metric("DAY HIGH", f"₹{day_high:.2f}")
-            m3.metric("DAY LOW", f"₹{day_low:.2f}")
-
-            # PRICE CHANGE
             if previous_close is not None and previous_close != 0:
-
                 price_change = current_price - previous_close
                 change_pct = (price_change / previous_close) * 100
-
-                m4.metric(
-                    "PRICE CHANGE",
-                    f"₹{price_change:.2f}",
-                    f"{change_pct:.2f}%"
-                )
-
-            else:
-                m4.metric("PRICE CHANGE", "N/A")
-
-            price_change = current_price - previous_close
-
-            change_pct = (
-                (price_change / previous_close) * 100
-                if previous_close != 0 else 0
-            )
-
-            m4, m5 = st.columns(2)
-
-            m4.metric(
-                "PRICE CHANGE",
-                f"₹{price_change:.2f}",
-                f"{change_pct:.2f}%"
-            )
-
-            m5.metric(
-                "MARKET STATUS",
-                "BULLISH" if price_change >= 0 else "BEARISH"
-            )
-
-            # PRICE CHANGE
-            m4, m5 = st.columns(2)
-
-            if previous_close is not None and previous_close != 0:
-
-                price_change = current_price - previous_close
-
-                change_pct = (
-                    price_change / previous_close
-                ) * 100
-
-                m4.metric(
-                    "PRICE CHANGE",
-                    f"₹{price_change:.2f}",
-                    f"{change_pct:.2f}%"
-                )
-
-                m5.metric(
-                    "MARKET STATUS",
+                market_status = (
                     "BULLISH" if price_change >= 0 else "BEARISH"
                 )
-
+                change_value = f"₹{price_change:.2f}"
+                change_delta = f"{change_pct:.2f}%"
             else:
+                market_status = "N/A"
+                change_value = "N/A"
+                change_delta = None
 
-                m4.metric("PRICE CHANGE", "N/A")
-                m5.metric("MARKET STATUS", "N/A")
+            metric_cols = st.columns(5)
+
+            metric_cols[0].metric("LTP", f"₹{current_price:.2f}")
+            metric_cols[1].metric("DAY HIGH", f"₹{day_high:.2f}")
+            metric_cols[2].metric("DAY LOW", f"₹{day_low:.2f}")
+            metric_cols[3].metric(
+                "PRICE CHANGE",
+                change_value,
+                change_delta
+            )
+            metric_cols[4].metric("MARKET STATUS", market_status)
             
             fig = go.Figure()
 
