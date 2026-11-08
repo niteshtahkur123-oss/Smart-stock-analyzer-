@@ -520,6 +520,8 @@ def live_market_monitor():
             ):
 
                 st.session_state["last_live_signal_key"] = active_signal_key
+                # LIVE TRADE PROFIT / LOSS TRACKING
+
                 signal_type = active_signal_key.split("_")[0]
 
                 signal_price = (
@@ -527,6 +529,40 @@ def live_market_monitor():
                     if signal_type == "BUY"
                     else float(last_sell["Close"])
                 )
+
+                trade_pnl = None
+                trade_pnl_pct = None
+
+                if signal_type == "BUY":
+
+                    st.session_state["live_open_positions"][selected_stock] = {
+                        "Entry Price": signal_price,
+                        "Entry Time": pd.Timestamp.now(
+                            tz="Asia/Kolkata"
+                        ).strftime("%d-%m-%Y %H:%M:%S")
+                    }
+
+                elif signal_type == "SELL":
+
+                    open_position = st.session_state[
+                        "live_open_positions"
+                    ].get(selected_stock)
+
+                    if open_position:
+
+                        entry_price = open_position["Entry Price"]
+
+                        trade_pnl = round(
+                            signal_price - entry_price, 2
+                        )
+
+                        trade_pnl_pct = round(
+                            (trade_pnl / entry_price) * 100, 2
+                        )
+
+                        del st.session_state[
+                            "live_open_positions"
+                        ][selected_stock]
 
                 st.session_state["live_signal_history"].append({
                     "Stock": selected_stock,
@@ -538,7 +574,9 @@ def live_market_monitor():
                     "Time": pd.Timestamp.now(
                         tz="Asia/Kolkata"
                     ).strftime("%H:%M:%S"),
-                    "Timeframe": timeframe_label
+                    "Timeframe": timeframe_label,
+                    "P&L ₹": trade_pnl,
+                    "P&L %": trade_pnl_pct
                 })
 
                 sample_rate = 22050
