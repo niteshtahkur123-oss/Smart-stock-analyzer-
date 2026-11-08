@@ -854,6 +854,12 @@ yaxis2=dict(
                 tickformat=",.2f"
             )
 
+            # CHART LAST UPDATE TIME
+            st.caption(
+                f"🟢 Chart Last Updated: "
+                f"{pd.Timestamp.now(tz='Asia/Kolkata').strftime('%H:%M:%S')}"
+            )
+
             st.plotly_chart(
                 fig,
                 use_container_width=True,
