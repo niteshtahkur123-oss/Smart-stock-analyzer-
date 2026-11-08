@@ -142,6 +142,9 @@ st.caption(
 @st.fragment(run_every="15s")
 def live_market_monitor():
 
+    if "live_signal_history" not in st.session_state:
+        st.session_state["live_signal_history"] = []
+        
     # CANDLE TIMEFRAME SELECTOR
     timeframe_label = st.selectbox(
         "Select Candle Timeframe",
