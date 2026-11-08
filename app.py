@@ -654,6 +654,11 @@ def live_market_monitor():
     else "red"
     for i in range(len(chart_df))
 ],
+                hovertemplate=(
+                    "Time: %{x|%H:%M}<br>"
+                    "Volume: %{y:,.0f}"
+                    "<extra></extra>"
+                ),
                     opacity=0.45
                 ))
             
