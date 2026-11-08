@@ -690,59 +690,7 @@ def live_market_monitor():
 
             # BUY MARKERS
 
-            buy_points = chart_df[
-                chart_df["BUY"]
-            ]
-
-            fig.add_trace(
-                go.Scatter(
-                    x=buy_points.index,
-                    y=buy_points["Low"] * 0.998,
-                    mode="markers+text",
-                    name="BUY",
-                    text=["BUY"] * len(buy_points),
-                    textposition="bottom center"
-                )
-            )
-
-            buy_points = chart_df[chart_df["BUY"]]
-
-            fig.add_trace(go.Scatter(
-                x=buy_points.index,
-                y=buy_points["Low"] * 0.998,
-                mode="markers+text",
-                name="BUY",
-                text=["BUY"] * len(buy_points),
-                textposition="bottom center",
-                marker=dict(
-                    symbol="triangle-up",
-                    size=15,
-                    color="green"
-                )
-            ))
-
-            sell_points = chart_df[chart_df["SELL"]]
-
-            fig.add_trace(go.Scatter(
-                x=sell_points.index,
-                y=sell_points["High"] * 1.002,
-                mode="markers+text",
-                name="SELL",
-                text=["SELL"] * len(sell_points),
-                textposition="top center",
-                marker=dict(
-                    symbol="triangle-down",
-                    size=15,
-                    color="red"
-                )
-            ))
-            
-            # SELL MARKERS
-
-            sell_points = chart_df[
-                chart_df["SELL"]
-            ]
-
+            # VOLUME BAR
             fig.add_trace(go.Bar(
                 x=chart_df.index,
                 y=chart_df["Volume"],
@@ -750,17 +698,38 @@ def live_market_monitor():
                 marker_color="lightblue",
                 yaxis="y2"
             ))
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=sell_points.index,
-                    y=sell_points["High"] * 1.002,
-                    mode="markers+text",
-                    name="SELL",
-                    text=["SELL"] * len(sell_points),
-                    textposition="top center"
+
+            # BUY TEXT ONLY
+            buy_points = chart_df[chart_df["BUY"]]
+
+            fig.add_trace(go.Scatter(
+                x=buy_points.index,
+                y=buy_points["Low"] * 0.998,
+                mode="text",
+                name="BUY",
+                text=["BUY"] * len(buy_points),
+                textposition="bottom center",
+                textfont=dict(
+                    color="green",
+                    size=13
                 )
-            )
+            ))
+
+            # SELL TEXT ONLY
+            sell_points = chart_df[chart_df["SELL"]]
+
+            fig.add_trace(go.Scatter(
+                x=sell_points.index,
+                y=sell_points["High"] * 1.002,
+                mode="text",
+                name="SELL",
+                text=["SELL"] * len(sell_points),
+                textposition="top center",
+                textfont=dict(
+                    color="red",
+                    size=13
+                )
+            ))
 
             # ==================================
             # CHART LAYOUT
