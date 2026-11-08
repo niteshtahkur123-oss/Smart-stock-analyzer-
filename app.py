@@ -617,13 +617,15 @@ def live_market_monitor():
                     high=chart_df["High"],
                     low=chart_df["Low"],
                     close=chart_df["Close"],
+                    text=chart_df["Volume"],
                     name=f"{timeframe_label} Price",
                     hovertemplate=(
                         "Time: %{x|%H:%M}<br>"
                         "Open: ₹%{open:.2f}<br>"
                         "High: ₹%{high:.2f}<br>"
                         "Low: ₹%{low:.2f}<br>"
-                        "Close: ₹%{close:.2f}"
+                        "Close: ₹%{close:.2f}<br>"
+"Volume: %{text:,.0f}"
                         "<extra></extra>"
                     ),
                     increasing_line_color="#16A34A",
@@ -785,6 +787,8 @@ def live_market_monitor():
                     font=dict(size=20, color="#222222")
                 ),
                 template="plotly_white",
+                hovermode="x unified",
+                uirevision="live-chart",
                 height=650,
                 paper_bgcolor="white",
                 plot_bgcolor="white",
@@ -816,6 +820,7 @@ yaxis2=dict(
 
             fig.update_xaxes(
                 type="date",
+                rangeslider_visible=False,
                 title=dict(text="TIME"),
                 tickformat="%H:%M",
                 tickangle=0,
@@ -841,6 +846,8 @@ yaxis2=dict(
                 side="right",
                 showticklabels=True,
                 showline=True,
+                showgrid=True,
+gridcolor="rgba(128,128,128,0.20)",
                 linecolor="#888888",
                 ticks="outside",
                 color="black",
