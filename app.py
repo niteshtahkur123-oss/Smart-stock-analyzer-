@@ -169,6 +169,15 @@ def live_market_monitor():
 
     selected_interval = timeframe_map[timeframe_label]
 
+    paper_quantity = st.number_input(
+        "Paper Trading Quantity",
+        min_value=1,
+        max_value=10000,
+        value=10,
+        step=1,
+        key="paper_trading_quantity"
+    )
+
     try:
 
         live_data = yf.download(
@@ -539,6 +548,8 @@ def live_market_monitor():
 
                         st.session_state["live_open_positions"][selected_stock] = {
                             "Entry Price": signal_price,
+                            "Quantity": int(paper_quantity),
+"Investment": round(signal_price * paper_quantity, 2),
                             "Entry Time": pd.Timestamp.now(
                                 tz="Asia/Kolkata"
                             ).strftime("%d-%m-%Y %H:%M:%S")
@@ -553,6 +564,8 @@ def live_market_monitor():
                     if open_position:
 
                         entry_price = open_position["Entry Price"]
+                        quantity = open_position.get("Quantity", 1)
+investment = entry_price * quantity
 
                         trade_pnl = round(
                             signal_price - entry_price, 2
@@ -776,13 +789,12 @@ def live_market_monitor():
                 entry_price = open_position["Entry Price"]
 
                 unrealized_pnl = round(
-                    current_price - entry_price, 2
-                )
+    (current_price - entry_price) * quantity, 2
+)
 
-                unrealized_pct = round(
-                    (unrealized_pnl / entry_price) * 100, 2
-                )
-
+unrealized_pct = round(
+    (unrealized_pnl / investment) * 100, 2
+)
                 st.subheader("📌 OPEN PAPER POSITION")
 
                 p1, p2, p3 = st.columns(3)
