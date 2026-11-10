@@ -787,14 +787,16 @@ def live_market_monitor():
             if open_position:
 
                 entry_price = open_position["Entry Price"]
+                quantity = open_position.get("Quantity", 1)
+                investment = entry_price * quantity
 
                 unrealized_pnl = round(
-    (current_price - entry_price) * quantity, 2
-)
+                    (current_price - entry_price) * quantity, 2
+                )
 
-unrealized_pct = round(
-    (unrealized_pnl / investment) * 100, 2
-)
+                unrealized_pct = round(
+                    (unrealized_pnl / investment) * 100, 2
+                )
                 st.subheader("📌 OPEN PAPER POSITION")
 
                 p1, p2, p3 = st.columns(3)
