@@ -624,6 +624,50 @@ def live_market_monitor():
                     use_container_width=True,
                     hide_index=True
                 )
+
+                # LIVE SIGNAL PERFORMANCE
+                closed_trades = history_df[
+                    history_df["P&L ₹"].notna()
+                ]
+
+                total_trades = len(closed_trades)
+
+                if total_trades > 0:
+
+                    total_profit = closed_trades["P&L ₹"].sum()
+
+                    winning_trades = (
+                        closed_trades["P&L ₹"] > 0
+                    ).sum()
+
+                    losing_trades = (
+                        closed_trades["P&L ₹"] < 0
+                    ).sum()
+
+                    win_rate = (
+                        winning_trades / total_trades
+                    ) * 100
+
+                    st.subheader("📊 LIVE SIGNAL PERFORMANCE")
+
+                    p1, p2, p3, p4 = st.columns(4)
+
+                    p1.metric("CLOSED TRADES", total_trades)
+
+                    p2.metric("WIN RATE", f"{win_rate:.1f}%")
+
+                    p3.metric(
+                        "WIN / LOSS",
+                        f"{winning_trades} / {losing_trades}"
+                    )
+
+                    p4.metric(
+                        "TOTAL P&L",
+                        f"₹{total_profit:.2f}"
+                    )
+
+                else:
+                    st.info("No closed trades available for P&L analysis.")
                 
                 # DOWNLOAD SIGNAL HISTORY
                 history_csv = history_df.iloc[::-1].to_csv(
