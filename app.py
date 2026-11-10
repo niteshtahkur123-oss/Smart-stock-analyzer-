@@ -764,6 +764,48 @@ def live_market_monitor():
             )
             metric_cols[4].metric("MARKET STATUS", market_status)
 
+            # OPEN PAPER POSITION TRACKER
+            open_position = st.session_state[
+                "live_open_positions"
+            ].get(selected_stock)
+
+            if open_position:
+
+                entry_price = open_position["Entry Price"]
+
+                unrealized_pnl = round(
+                    current_price - entry_price, 2
+                )
+
+                unrealized_pct = round(
+                    (unrealized_pnl / entry_price) * 100, 2
+                )
+
+                st.subheader("📌 OPEN PAPER POSITION")
+
+                p1, p2, p3 = st.columns(3)
+
+                p1.metric(
+                    "ENTRY PRICE",
+                    f"₹{entry_price:.2f}"
+                )
+
+                p2.metric(
+                    "CURRENT P&L",
+                    f"₹{unrealized_pnl:.2f}",
+                    f"{unrealized_pct:.2f}%"
+                )
+
+                p3.metric(
+                    "POSITION STATUS",
+                    "OPEN"
+                )
+
+            else:
+                st.info(
+                    f"No open paper position for {selected_stock}."
+                )
+
             # LATEST CANDLE DETAILS
             last_candle_time = chart_df.index[-1].strftime("%H:%M")
 
