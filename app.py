@@ -634,6 +634,74 @@ def live_market_monitor():
                     st.session_state["live_signal_history"]
                 )
 
+                # CLOSED PAPER TRADES
+                st.subheader("📊 CLOSED PAPER TRADES")
+
+                if (
+                    "P&L ₹" in history_df.columns
+                    and "Signal" in history_df.columns
+                ):
+
+                    closed_trades = history_df[
+                        (history_df["Signal"] == "SELL")
+                        & (history_df["P&L ₹"].notna())
+                    ].copy()
+
+                else:
+                    closed_trades = pd.DataFrame()
+
+                if not closed_trades.empty:
+
+                    total_trades = len(closed_trades)
+
+                    total_pnl = closed_trades["P&L ₹"].sum()
+
+                    winning_trades = (
+                        closed_trades["P&L ₹"] > 0
+                    ).sum()
+
+                    win_rate = (
+                        winning_trades / total_trades
+                    ) * 100
+
+                    c1, c2, c3 = st.columns(3)
+
+                    c1.metric(
+                        "CLOSED TRADES",
+                        total_trades
+                    )
+
+                    c2.metric(
+                        "TOTAL REALIZED P&L",
+                        f"₹{total_pnl:,.2f}"
+                    )
+
+                    c3.metric(
+                        "WIN RATE",
+                        f"{win_rate:.1f}%"
+                    )
+
+                    display_columns = [
+                        col for col in [
+                            "Stock",
+                            "Date",
+                            "Time",
+                            "Price",
+                            "P&L ₹",
+                            "P&L %"
+                        ]
+                        if col in closed_trades.columns
+                    ]
+
+                    st.dataframe(
+                        closed_trades[display_columns].iloc[::-1],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                else:
+                    st.info("No closed paper trades available yet.")
+
                 st.dataframe(
                     history_df.iloc[::-1],
                     use_container_width=True,
@@ -815,6 +883,15 @@ def live_market_monitor():
                 p3.metric(
                     "POSITION STATUS",
                     "OPEN"
+                )
+
+                st.caption(
+                    f"Entry Time: {open_position.get('Entry Time', 'N/A')}"
+                )
+
+                st.metric(
+                    "TOTAL INVESTMENT",
+                    f"₹{investment:,.2f}"
                 )
 
             else:
