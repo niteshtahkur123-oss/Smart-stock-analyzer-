@@ -549,7 +549,7 @@ def live_market_monitor():
                         st.session_state["live_open_positions"][selected_stock] = {
                             "Entry Price": signal_price,
                             "Quantity": int(paper_quantity),
-"Investment": round(signal_price * paper_quantity, 2),
+                            "Investment": round(signal_price * paper_quantity, 2),
                             "Entry Time": pd.Timestamp.now(
                                 tz="Asia/Kolkata"
                             ).strftime("%d-%m-%Y %H:%M:%S")
@@ -561,19 +561,19 @@ def live_market_monitor():
                         "live_open_positions"
                     ].get(selected_stock)
 
-            if open_position:
+                    if open_position:
 
-                entry_price = open_position["Entry Price"]
-                quantity = open_position.get("Quantity", 1)
-                investment = entry_price * quantity
+                        entry_price = open_position["Entry Price"]
+                        quantity = open_position.get("Quantity", 1)
+                        investment = entry_price * quantity
 
-                unrealized_pnl = round(
-                    (current_price - entry_price) * quantity, 2
-                )
+                        trade_pnl = round(
+                            (signal_price - entry_price) * quantity, 2
+                        )
 
-                unrealized_pct = round(
-                    (unrealized_pnl / investment) * 100, 2
-                )
+                        trade_pnl_pct = round(
+                            (trade_pnl / investment) * 100, 2
+                        )
 
                         del st.session_state[
                             "live_open_positions"
