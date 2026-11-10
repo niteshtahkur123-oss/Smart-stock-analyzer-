@@ -535,12 +535,14 @@ def live_market_monitor():
 
                 if signal_type == "BUY":
 
-                    st.session_state["live_open_positions"][selected_stock] = {
-                        "Entry Price": signal_price,
-                        "Entry Time": pd.Timestamp.now(
-                            tz="Asia/Kolkata"
-                        ).strftime("%d-%m-%Y %H:%M:%S")
-                    }
+    if selected_stock not in st.session_state["live_open_positions"]:
+
+        st.session_state["live_open_positions"][selected_stock] = {
+            "Entry Price": signal_price,
+            "Entry Time": pd.Timestamp.now(
+                tz="Asia/Kolkata"
+            ).strftime("%d-%m-%Y %H:%M:%S")
+        }
 
                 elif signal_type == "SELL":
 
