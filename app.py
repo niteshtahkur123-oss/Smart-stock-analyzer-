@@ -14,7 +14,7 @@ st.set_page_config(
 )
 
 st.title("📊 Smart Stock Analyzer")
-"SSA v0.5 | Portfolio Backtesting | Manual Trading Only"
+"SSA v0.6 | Portfolio Backtesting | Manual Trading Only"
 st.warning(
     "Yahoo Finance data may be delayed or unavailable. "
     "Verify prices with your broker. Historical results "
@@ -150,8 +150,8 @@ def live_market_monitor():
     if "live_open_positions" not in st.session_state:
         st.session_state["live_open_positions"] = {}
 
-    if "last_live_signal_key" not in st.session_state:
-        st.session_state["last_live_signal_key"] = None
+    if "live_signal_keys" not in st.session_state:
+        st.session_state["live_signal_keys"] = {}
         
     # CANDLE TIMEFRAME SELECTOR
     timeframe_label = st.selectbox(
@@ -301,9 +301,10 @@ def live_market_monitor():
                     ) - timestamp
                 ).total_seconds()
 
+                freshness_seconds = {"1m": 180, "5m": 600, "15m": 1200}[selected_interval]
                 status = (
                     "FRESH"
-                    if 0 <= age_seconds <= 600
+                    if 0 <= age_seconds <= freshness_seconds
                     else "STALE"
                 )
 
@@ -324,7 +325,7 @@ def live_market_monitor():
                         else None
                     ),
 
-                    "Last 5m Volume": (
+                    "Last Candle Volume": (
                         int(volume)
                         if np.isfinite(volume)
                         else None
@@ -381,7 +382,7 @@ def live_market_monitor():
 
         st.divider()
 
-        st.subheader("📈 LIVE 5-MINUTE CHART")
+        st.subheader(f"📈 LIVE {timeframe_label.upper()} CHART")
 
         stock_names = [
             s.replace(".NS", "")
@@ -401,6 +402,9 @@ def live_market_monitor():
         selected_symbol = selected_stock + ".NS"
 
         chart_df = stock_frames[selected_symbol].copy()
+        if "Volume" not in chart_df.columns:
+            chart_df["Volume"] = 0
+        chart_df["Volume"] = pd.to_numeric(chart_df["Volume"], errors="coerce").fillna(0)
 
         # Convert chart timestamps to IST
         if chart_df.index.tz is None:
@@ -481,282 +485,121 @@ def live_market_monitor():
         f"{pd.Timestamp.now(tz='Asia/Kolkata').strftime('%H:%M:%S')}"
             )
 
-            # LATEST BUY / SELL SIGNAL
-            buy_points = chart_df[chart_df["BUY"]]
-            sell_points = chart_df[chart_df["SELL"]]
+            # MONITOR NEW EMA CROSSOVERS FOR EVERY RECEIVED STOCK
+            # Signal identity includes symbol + timeframe + candle time.
+            for monitored_symbol, monitored_df in stock_frames.items():
+                signal_df = monitored_df.copy().sort_index()
+                if not all(col in signal_df.columns for col in ["Open", "High", "Low", "Close"]):
+                    continue
 
-            active_signal_key = None
-
-            if not buy_points.empty and (
-                sell_points.empty or
-                buy_points.index[-1] > sell_points.index[-1]
-            ):
-                last_buy = buy_points.iloc[-1]
-
-                active_signal_key = f"BUY_{buy_points.index[-1]}"
-
-                st.success(
-                    f"🟢 BUY SIGNAL | Price: ₹{last_buy['Close']:.2f}"
+                signal_df["EMA9"] = signal_df["Close"].ewm(span=9, adjust=False).mean()
+                signal_df["EMA20"] = signal_df["Close"].ewm(span=20, adjust=False).mean()
+                signal_df["BUY"] = (
+                    (signal_df["EMA9"] > signal_df["EMA20"])
+                    & (signal_df["EMA9"].shift(1) <= signal_df["EMA20"].shift(1))
+                )
+                signal_df["SELL"] = (
+                    (signal_df["EMA9"] < signal_df["EMA20"])
+                    & (signal_df["EMA9"].shift(1) >= signal_df["EMA20"].shift(1))
                 )
 
-            elif not sell_points.empty:
+                latest_signal_day = signal_df.index[-1].date()
+                day_signals = signal_df[signal_df.index.date == latest_signal_day]
+                buy_rows = day_signals[day_signals["BUY"]]
+                sell_rows = day_signals[day_signals["SELL"]]
 
-                last_sell = sell_points.iloc[-1]
+                signal_type = None
+                signal_row = None
+                if not buy_rows.empty and (sell_rows.empty or buy_rows.index[-1] > sell_rows.index[-1]):
+                    signal_type, signal_row = "BUY", buy_rows.iloc[-1]
+                    signal_time = buy_rows.index[-1]
+                elif not sell_rows.empty:
+                    signal_type, signal_row = "SELL", sell_rows.iloc[-1]
+                    signal_time = sell_rows.index[-1]
 
-                active_signal_key = f"SELL_{sell_points.index[-1]}"
-
-                st.error(
-                    f"🔴 SELL SIGNAL | Price: ₹{last_sell['Close']:.2f}"
+                key_name = f"{monitored_symbol}|{selected_interval}"
+                current_key = (
+                    f"{signal_type}_{signal_time}"
+                    if signal_type is not None else None
                 )
+                previous_key = st.session_state["live_signal_keys"].get(key_name, "__INITIALIZED__")
 
-            else:
+                # Seed the latest known signal on first load; record only newly appearing signals.
+                if previous_key == "__INITIALIZED__":
+                    st.session_state["live_signal_keys"][key_name] = current_key
+                    continue
 
-                latest = chart_df.iloc[-1]
+                if current_key is None or current_key == previous_key:
+                    st.session_state["live_signal_keys"][key_name] = current_key
+                    continue
 
-                if latest["EMA9"] > latest["EMA20"]:
-                    st.info("EMA TREND: BULLISH")
-                else:
-                    st.warning("EMA TREND: BEARISH")
-
-            # SOUND ALERT - NEW SIGNAL ONLY
-            if "last_live_signal_key" not in st.session_state:
-
-                st.session_state["last_live_signal_key"] = active_signal_key
-
-            elif (
-                active_signal_key is not None
-                and active_signal_key != st.session_state["last_live_signal_key"]
-            ):
-
-                st.session_state["last_live_signal_key"] = active_signal_key
-                # LIVE TRADE PROFIT / LOSS TRACKING
-
-                signal_type = active_signal_key.split("_")[0]
-
-                signal_price = (
-                    float(last_buy["Close"])
-                    if signal_type == "BUY"
-                    else float(last_sell["Close"])
-                )
-
+                st.session_state["live_signal_keys"][key_name] = current_key
+                stock_name = monitored_symbol.replace(".NS", "")
+                signal_price = float(signal_row["Close"])
                 trade_pnl = None
                 trade_pnl_pct = None
 
                 if signal_type == "BUY":
-
-                    if selected_stock not in st.session_state["live_open_positions"]:
-
-                        st.session_state["live_open_positions"][selected_stock] = {
+                    if stock_name not in st.session_state["live_open_positions"]:
+                        st.session_state["live_open_positions"][stock_name] = {
                             "Entry Price": signal_price,
                             "Quantity": int(paper_quantity),
                             "Investment": round(signal_price * paper_quantity, 2),
-                            "Entry Time": pd.Timestamp.now(
-                                tz="Asia/Kolkata"
-                            ).strftime("%d-%m-%Y %H:%M:%S")
+                            "Entry Time": pd.Timestamp.now(tz="Asia/Kolkata").strftime("%d-%m-%Y %H:%M:%S")
                         }
-
-                elif signal_type == "SELL":
-
-                    open_position = st.session_state[
-                        "live_open_positions"
-                    ].get(selected_stock)
-
+                else:
+                    open_position = st.session_state["live_open_positions"].get(stock_name)
                     if open_position:
-
-                        entry_price = open_position["Entry Price"]
-                        quantity = open_position.get("Quantity", 1)
+                        entry_price = float(open_position["Entry Price"])
+                        quantity = int(open_position.get("Quantity", 1))
+                        gross_pnl = (signal_price - entry_price) * quantity
+                        estimated_cost = (entry_price + signal_price) * quantity * (trading_cost / 100)
+                        trade_pnl = round(gross_pnl - estimated_cost, 2)
                         investment = entry_price * quantity
+                        trade_pnl_pct = round(trade_pnl / investment * 100, 2) if investment else 0.0
+                        del st.session_state["live_open_positions"][stock_name]
 
-                        trade_pnl = round(
-                            (signal_price - entry_price) * quantity, 2
-                        )
-
-                        trade_pnl_pct = round(
-                            (trade_pnl / investment) * 100, 2
-                        )
-
-                        del st.session_state[
-                            "live_open_positions"
-                        ][selected_stock]
-
+                now_ist = pd.Timestamp.now(tz="Asia/Kolkata")
                 st.session_state["live_signal_history"].append({
-                    "Stock": selected_stock,
+                    "Stock": stock_name,
                     "Signal": signal_type,
                     "Price": round(signal_price, 2),
-                    "Date": pd.Timestamp.now(
-                        tz="Asia/Kolkata"
-                    ).strftime("%d-%m-%Y"),
-                    "Time": pd.Timestamp.now(
-                        tz="Asia/Kolkata"
-                    ).strftime("%H:%M:%S"),
+                    "Date": now_ist.strftime("%d-%m-%Y"),
+                    "Time": now_ist.strftime("%H:%M:%S"),
+                    "Candle Time": signal_time.strftime("%d-%m-%Y %H:%M:%S"),
                     "Timeframe": timeframe_label,
                     "P&L ₹": trade_pnl,
                     "P&L %": trade_pnl_pct
                 })
+                st.toast(f"🔔 {stock_name}: NEW {signal_type} SIGNAL")
 
-                sample_rate = 22050
-                duration = 0.35
-
-                t = np.linspace(
-                    0,
-                    duration,
-                    int(sample_rate * duration),
-                    endpoint=False
-                )
-
-                tone = (
-                    0.25 * np.sin(2 * np.pi * 880 * t) * 32767
-                ).astype(np.int16)
-
-                audio_buffer = io.BytesIO()
-
-                with wave.open(audio_buffer, "wb") as audio_file:
-                    audio_file.setnchannels(1)
-                    audio_file.setsampwidth(2)
-                    audio_file.setframerate(sample_rate)
-                    audio_file.writeframes(tone.tobytes())
-
-                st.audio(
-                    audio_buffer.getvalue(),
-                    format="audio/wav",
-                    autoplay=True
-                )
-
-                st.toast(
-                    "🔔 NEW BUY / SELL SIGNAL DETECTED!"
-                )
-            # LIVE BUY / SELL SIGNAL HISTORY
+            # LIVE SIGNAL HISTORY AND PAPER TRADE PERFORMANCE
             st.subheader("📋 LIVE SIGNAL HISTORY")
-
             if st.session_state["live_signal_history"]:
+                history_df = pd.DataFrame(st.session_state["live_signal_history"])
+                if "P&L ₹" not in history_df.columns:
+                    history_df["P&L ₹"] = np.nan
+                if "Signal" not in history_df.columns:
+                    history_df["Signal"] = ""
 
-                history_df = pd.DataFrame(
-                    st.session_state["live_signal_history"]
-                )
-
-                # CLOSED PAPER TRADES
-                st.subheader("📊 CLOSED PAPER TRADES")
-
-                if (
-                    "P&L ₹" in history_df.columns
-                    and "Signal" in history_df.columns
-                ):
-
-                    closed_trades = history_df[
-                        (history_df["Signal"] == "SELL")
-                        & (history_df["P&L ₹"].notna())
-                    ].copy()
-
-                else:
-                    closed_trades = pd.DataFrame()
-
+                closed_trades = history_df[
+                    (history_df["Signal"] == "SELL") & history_df["P&L ₹"].notna()
+                ].copy()
                 if not closed_trades.empty:
-
-                    total_trades = len(closed_trades)
-
-                    total_pnl = closed_trades["P&L ₹"].sum()
-
-                    winning_trades = (
-                        closed_trades["P&L ₹"] > 0
-                    ).sum()
-
-                    win_rate = (
-                        winning_trades / total_trades
-                    ) * 100
-
-                    c1, c2, c3 = st.columns(3)
-
-                    c1.metric(
-                        "CLOSED TRADES",
-                        total_trades
-                    )
-
-                    c2.metric(
-                        "TOTAL REALIZED P&L",
-                        f"₹{total_pnl:,.2f}"
-                    )
-
-                    c3.metric(
-                        "WIN RATE",
-                        f"{win_rate:.1f}%"
-                    )
-
-                    display_columns = [
-                        col for col in [
-                            "Stock",
-                            "Date",
-                            "Time",
-                            "Price",
-                            "P&L ₹",
-                            "P&L %"
-                        ]
-                        if col in closed_trades.columns
-                    ]
-
-                    st.dataframe(
-                        closed_trades[display_columns].iloc[::-1],
-                        use_container_width=True,
-                        hide_index=True
-                    )
-
+                    total_pnl = float(closed_trades["P&L ₹"].sum())
+                    winners = int((closed_trades["P&L ₹"] > 0).sum())
+                    win_rate = winners / len(closed_trades) * 100
+                    p1, p2, p3 = st.columns(3)
+                    p1.metric("CLOSED PAPER TRADES", len(closed_trades))
+                    p2.metric("REALIZED NET P&L", f"₹{total_pnl:,.2f}")
+                    p3.metric("WIN RATE", f"{win_rate:.1f}%")
+                    st.dataframe(closed_trades.iloc[::-1], use_container_width=True, hide_index=True)
                 else:
                     st.info("No closed paper trades available yet.")
 
-                st.dataframe(
-                    history_df.iloc[::-1],
-                    use_container_width=True,
-                    hide_index=True
-                )
-
-                # LIVE SIGNAL PERFORMANCE
-                closed_trades = history_df[
-                    history_df["P&L ₹"].notna()
-                ]
-
-                total_trades = len(closed_trades)
-
-                if total_trades > 0:
-
-                    total_profit = closed_trades["P&L ₹"].sum()
-
-                    winning_trades = (
-                        closed_trades["P&L ₹"] > 0
-                    ).sum()
-
-                    losing_trades = (
-                        closed_trades["P&L ₹"] < 0
-                    ).sum()
-
-                    win_rate = (
-                        winning_trades / total_trades
-                    ) * 100
-
-                    st.subheader("📊 LIVE SIGNAL PERFORMANCE")
-
-                    p1, p2, p3, p4 = st.columns(4)
-
-                    p1.metric("CLOSED TRADES", total_trades)
-
-                    p2.metric("WIN RATE", f"{win_rate:.1f}%")
-
-                    p3.metric(
-                        "WIN / LOSS",
-                        f"{winning_trades} / {losing_trades}"
-                    )
-
-                    p4.metric(
-                        "TOTAL P&L",
-                        f"₹{total_profit:.2f}"
-                    )
-
-                else:
-                    st.info("No closed trades available for P&L analysis.")
-                
-                # DOWNLOAD SIGNAL HISTORY
-                history_csv = history_df.iloc[::-1].to_csv(
-                    index=False
-                ).encode("utf-8")
-
+                st.subheader("All Recorded Signals")
+                st.dataframe(history_df.iloc[::-1], use_container_width=True, hide_index=True)
+                history_csv = history_df.iloc[::-1].to_csv(index=False).encode("utf-8")
                 st.download_button(
                     label="📥 Download Signal History CSV",
                     data=history_csv,
@@ -764,59 +607,29 @@ def live_market_monitor():
                     mime="text/csv",
                     key="download_live_signal_history"
                 )
-
             else:
-                st.info("No BUY / SELL signals recorded yet.")
+                st.info("No new BUY / SELL crossover signals recorded in this session yet.")
+            st.caption("Signal history and paper positions are held in Streamlit session memory; they may reset when the app session restarts. Paper P&L includes the configured estimated trading cost, not actual broker charges.")
 
-            # ==================================
-            # BUY / SELL CONDITIONS
-            # ==================================
-
-            chart_df["BUY"] = (
-                (chart_df["EMA9"] > chart_df["EMA20"]) &
-                (chart_df["EMA9"].shift(1) <=
-                 chart_df["EMA20"].shift(1))
-            )
-
-            chart_df["SELL"] = (
-                (chart_df["EMA9"] < chart_df["EMA20"]) &
-                (chart_df["EMA9"].shift(1) >=
-                 chart_df["EMA20"].shift(1))
-            )
-
-            # Keep full data for EMA calculation,
-            # but display only latest trading day
+            # Keep EMA crossover columns calculated on full history; show only latest session.
             latest_date = chart_df.index[-1].date()
-
-            chart_df = chart_df[
-                chart_df.index.date == latest_date
-            ] 
-
-            # ==================================
-            # LATEST SIGNAL
-            # ==================================
+            chart_df = chart_df[chart_df.index.date == latest_date].copy()
+            if chart_df.empty:
+                st.warning("No candles available for the latest trading session.")
+                return
 
             latest = chart_df.iloc[-1]
-
-            if bool(latest["BUY"]):
-
-                st.success("🟢 BUY SIGNAL")
-
-            elif bool(latest["SELL"]):
-
-                st.error("🔴 SELL SIGNAL")
-
+            buy_points = chart_df[chart_df["BUY"]]
+            sell_points = chart_df[chart_df["SELL"]]
+            if not buy_points.empty and (sell_points.empty or buy_points.index[-1] > sell_points.index[-1]):
+                st.success(f"🟢 BUY SIGNAL | Price: ₹{buy_points.iloc[-1]['Close']:.2f}")
+            elif not sell_points.empty:
+                st.error(f"🔴 SELL SIGNAL | Price: ₹{sell_points.iloc[-1]['Close']:.2f}")
             elif latest["EMA9"] > latest["EMA20"]:
-
                 st.info("EMA TREND: BULLISH")
-
             else:
-
                 st.warning("EMA TREND: BEARISH")
 
-            # ==================================
-            # CANDLESTICK CHART
-            # ==================================
             # LIVE MARKET METRICS
             current_price = float(chart_df["Close"].iloc[-1])
             day_high = float(chart_df["High"].max())
@@ -858,8 +671,10 @@ def live_market_monitor():
                 quantity = open_position.get("Quantity", 1)
                 investment = entry_price * quantity
 
+                unrealized_gross_pnl = (current_price - entry_price) * quantity
+                estimated_exit_cost = (entry_price + current_price) * quantity * (trading_cost / 100)
                 unrealized_pnl = round(
-                    (current_price - entry_price) * quantity, 2
+                    unrealized_gross_pnl - estimated_exit_cost, 2
                 )
 
                 unrealized_pct = round(
@@ -923,6 +738,7 @@ def live_market_monitor():
             # VOLUME STRENGTH
             avg_volume = (
                 chart_df["Volume"].iloc[:-1].tail(20).mean()
+                if len(chart_df) > 1 else 0
             )
 
             if avg_volume > 0:
@@ -977,28 +793,6 @@ def live_market_monitor():
                 annotation_text=f"LTP ₹{current_price:.2f}",
                 annotation_position="right"
             )
-            # BUY SIGNAL MARKERS
-            buy_points = chart_df[chart_df["BUY"]]
-            sell_points = chart_df[chart_df["SELL"]]
-
-            fig.add_trace(go.Scatter(
-                x=buy_points.index,
-                y=buy_points["Low"] * 0.998,
-                mode="text",
-                text=["BUY"] * len(buy_points),
-                textfont=dict(color="black", size=13),
-                name="BUY"
-            ))
-
-            fig.add_trace(go.Scatter(
-                x=sell_points.index,
-                y=sell_points["High"] * 1.002,
-                mode="text",
-                text=["SELL"] * len(sell_points),
-                textfont=dict(color="black", size=13),
-                name="SELL"
-            ))          
-
             # EMA 9
 
             fig.add_trace(
@@ -1020,17 +814,6 @@ def live_market_monitor():
                     name="EMA 20"
                 )
             )
-
-            # BUY MARKERS
-
-            # VOLUME BAR
-            fig.add_trace(go.Bar(
-                x=chart_df.index,
-                y=chart_df["Volume"],
-                name="VOLUME",
-                marker_color="lightblue",
-                yaxis="y2"
-            ))
 
             # BUY TEXT ONLY
             buy_points = chart_df[chart_df["BUY"]]
@@ -1087,12 +870,6 @@ def live_market_monitor():
             )
 
             if "Volume" in chart_df.columns:
-                volume_colors = np.where(
-                    chart_df["Close"] >= chart_df["Open"],
-                    "green",
-                    "red"
-                )
-
                 fig.add_trace(go.Bar(
                     x=chart_df.index,
                     y=chart_df["Volume"],
@@ -1131,7 +908,7 @@ yaxis2=dict(
     showgrid=False,
     title="",
     anchor="x",
-    range=[0, max(1, chart_df["Volume"].max() * 5)]
+    range=[0, max(1, float(chart_df["Volume"].max()) * 5)]
 ),
                 dragmode="pan",
                 margin=dict(
@@ -1363,7 +1140,11 @@ def analyze_stock(symbol, df):
     if df is None or len(df) < 30:
         return None
 
-    df = calculate_indicators(df)
+    if not all(col in df.columns for col in [
+        "EMA9", "EMA20", "EMA50", "EMA200", "RSI",
+        "MACD_Bullish", "ATR", "VolumeRatio"
+    ]):
+        df = calculate_indicators(df)
 
     row = df.iloc[-1]
 
@@ -1418,8 +1199,8 @@ def analyze_stock(symbol, df):
 
     entry = price
     stop = max(0.01, entry - 1.5 * atr)
-    target1 = entry + 2 * atr
-    target2 = entry + 3 * atr
+    target1 = entry + atr
+    target2 = entry + 2 * atr
 
     risk = entry - stop
 
@@ -1451,56 +1232,6 @@ def analyze_stock(symbol, df):
         "Data Date": str(df.index[-1].date())
     }
 
-
-    # Add the newly opened position
-    open_positions.append(position)
-
-    # Process remaining open positions after all entry signals
-    for pos in open_positions:
-        cash += pos["Invested ₹"] + pos["P&L ₹"]
-        equity += pos["P&L ₹"]
-        completed.append(pos)
-
-    open_positions = []
-
-    if not completed:
-        return [], {}
-
-    results = pd.DataFrame(completed)
-
-    total_trades = len(results)
-    winning_trades = int((results["P&L ₹"] > 0).sum())
-    losing_trades = int((results["P&L ₹"] < 0).sum())
-
-    total_pnl = float(results["P&L ₹"].sum())
-    final_capital = initial_capital + total_pnl
-
-    returns = results["Return %"].astype(float)
-
-    win_rate = (
-        winning_trades / total_trades * 100
-        if total_trades else 0
-    )
-
-    summary = {
-        "Initial Capital ₹": round(initial_capital, 2),
-        "Final Capital ₹": round(final_capital, 2),
-        "Net P&L ₹": round(total_pnl, 2),
-        "Total Return %": round(
-            (total_pnl / initial_capital) * 100, 2
-        ),
-        "Total Trades": total_trades,
-        "Winning Trades": winning_trades,
-        "Losing Trades": losing_trades,
-        "Win Rate %": round(win_rate, 2),
-        "Average Trade Return %": round(
-            float(returns.mean()), 2
-        ),
-        "Best Trade %": round(float(returns.max()), 2),
-        "Worst Trade %": round(float(returns.min()), 2)
-    }
-
-    return completed, summary
 
 def calculate_metrics(trades):
 
@@ -1546,7 +1277,7 @@ def calculate_metrics(trades):
         "Average Loss %": round(
             losses.mean(), 2
         ) if len(losses) else 0,
-        "Max Drawdown %": round(
+        "Max Trade-Sequence Drawdown %": round(
             drawdown.min(), 2
         ),
         "Total Return %": round(
@@ -1942,7 +1673,7 @@ def simulate_portfolio(
             wins / losses, 2
         ) if losses > 0 else "No Losses",
 
-        "Max Drawdown %": round(
+        "Max Realized Drawdown %": round(
             drawdown.min(), 2
         ),
 
@@ -2027,7 +1758,7 @@ if st.button("SCAN STOCKS", type="primary"):
 
                     result = analyze_stock(
                         symbol,
-                        raw
+                        prepared
                     )
 
                     if result is not None:
@@ -2073,116 +1804,32 @@ if st.button("SCAN STOCKS", type="primary"):
         message.empty()
 
         if results:
-
             df_result = pd.DataFrame(results)
-
             df_result = df_result.sort_values(
                 ["Score", "Volume Ratio"],
                 ascending=False,
                 na_position="last"
-            ).head(max_stocks)
-
-        # ==========================================
-        # TOP 10 SCANNER RESULT COLUMN ORDER
-        # ==========================================
-
-        df_result["Remark / Note"] = (
-            f"SHORT TERM | Daily Setup | "
-            f"Max Holding: {holding_days} Trading Days"
-        )
-
-        priority_columns = [
-            "Stock",
-            "Trend",
-            "Price ₹",
-            "Entry Ref ₹",
-            "Stop Loss Ref ₹",
-            "Target 1 ₹",
-            "Target 2 ₹",
-            "Strength",
-            "Signal"
-        ]
-
-        remaining_columns = [
-            col for col in df_result.columns
-            if col not in priority_columns
-            and col != "Remark / Note"
-        ]
-
-        df_result = df_result[
-            [col for col in priority_columns
-             if col in df_result.columns]
-            + remaining_columns
-            + ["Remark / Note"]
-        ]
-
-        st.subheader(
-            f"Qualifying Stocks: {len(df_result)}"
-        )
-
-        if len(df_result) > 0:
-
-            selected_stock = st.selectbox(
-                "📊 Select Stock to View Candlestick Chart",
-                df_result["Stock"].dropna().unique().tolist(),
-                key="selected_chart_stock"
-            )
-           # ==========================================
-        # TOP 10 SCANNER RESULTS
-        # ==========================================
-
-        if results:
-
-            df_result = pd.DataFrame(results)
-
-            df_result = df_result.sort_values(
-                ["Score", "Volume Ratio"],
-                ascending=False,
-                na_position="last"
-            ).head(max_stocks)
+            ).head(max_stocks).copy()
 
             df_result["Remark / Note"] = (
-                f"SHORT TERM | Daily Setup | "
-                f"Max Holding: {holding_days} Trading Days"
+                f"SHORT TERM | Daily Setup | Max Holding: {holding_days} Trading Days"
             )
-
             priority_columns = [
-                "Stock",
-                "Trend",
-                "Price ₹",
-                "Entry Ref ₹",
-                "Stop Loss Ref ₹",
-                "Target 1 ₹",
-                "Target 2 ₹",
-                "Strength",
-                "Signal"
+                "Stock", "Trend", "Price ₹", "Entry Ref ₹",
+                "Stop Loss Ref ₹", "Target 1 ₹", "Target 2 ₹",
+                "Strength", "Signal"
             ]
-
             remaining_columns = [
                 col for col in df_result.columns
-                if col not in priority_columns
-                and col != "Remark / Note"
+                if col not in priority_columns and col != "Remark / Note"
             ]
-
             df_result = df_result[
-                [col for col in priority_columns
-                 if col in df_result.columns]
-                + remaining_columns
-                + ["Remark / Note"]
+                [col for col in priority_columns if col in df_result.columns]
+                + remaining_columns + ["Remark / Note"]
             ]
 
-            st.subheader(
-                f"Qualifying Stocks: {len(df_result)}"
-            )
-
-            # Scanner Table
-            st.dataframe(
-                df_result,
-                use_container_width=True,
-                hide_index=True
-            )
-
-            # CSV Download
+            st.subheader(f"Qualifying Stocks: {len(df_result)}")
+            st.dataframe(df_result, use_container_width=True, hide_index=True)
             st.download_button(
                 "Download Scan CSV",
                 df_result.to_csv(index=False).encode("utf-8"),
@@ -2190,32 +1837,17 @@ if st.button("SCAN STOCKS", type="primary"):
                 mime="text/csv"
             )
 
-            # Save Scan History
             history = df_result.copy()
-
-            history.insert(
-                0,
-                "Scan Time",
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            )
-
+            history.insert(0, "Scan Time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             st.session_state.scan_history = pd.concat(
-                [
-                    st.session_state.scan_history,
-                    history
-                ],
-                ignore_index=True
+                [st.session_state.scan_history, history], ignore_index=True
             )
-
-            # ==========================================
-            # SELECT STOCK
-            # ==========================================
 
             selected_stock = st.selectbox(
-    "📊 Select Stock to View Candlestick Chart",
-    df_result["Stock"].dropna().unique().tolist(),
-    key="scanner_chart_stock_dropdown"
-)
+                "📊 Select Stock to View Candlestick Chart",
+                df_result["Stock"].dropna().unique().tolist(),
+                key="scanner_chart_stock_dropdown"
+            )
 
             # IMPORTANT: Add .NS because scanner stores
             # stock names without the Yahoo Finance suffix.
@@ -2232,6 +1864,9 @@ if st.button("SCAN STOCKS", type="primary"):
             )
 
             if chart_df is not None and not chart_df.empty:
+
+                if "Volume" not in chart_df.columns:
+                    chart_df["Volume"] = 0
 
                 chart_df["EMA9"] = (
                     chart_df["Close"].ewm(
@@ -2433,69 +2068,68 @@ if st.button("SCAN STOCKS", type="primary"):
                 trading_cost_pct=trading_cost
             )
 
-            st.subheader("Overall Strategy Performance")  
+            if not overall:
+                st.warning("No portfolio trades passed the capital, risk, and position constraints.")
+            else:
+                st.subheader("Overall Strategy Performance")
 
+                c1, c2, c3, c4 = st.columns(4)
 
-            st.subheader("Overall Strategy Performance")
+                c1.metric("Total Trades", overall["Trades"])
+                c2.metric("Win Rate", f'{overall["Win Rate %"]}%')
+                c3.metric("Profit Factor", overall["Profit Factor"])
+                c4.metric("Max Realized Drawdown", f'{overall["Max Realized Drawdown %"]}%')
 
-            c1, c2, c3, c4 = st.columns(4)
+                c5, c6, c7 = st.columns(3)
 
-            c1.metric("Total Trades", overall["Trades"])
-            c2.metric("Win Rate", f'{overall["Win Rate %"]}%')
-            c3.metric("Profit Factor", overall["Profit Factor"])
-            c4.metric("Max Drawdown", f'{overall["Max Drawdown %"]}%')
-
-            c5, c6, c7 = st.columns(3)
-
-            c5.metric("Starting Capital", f'₹{initial_capital:,.0f}')
-            c6.metric("Final Capital", f'₹{overall["Final Equity ₹"]:,.2f}')
-            c7.metric(
-                "Net Profit / Loss",
-                f'₹{overall["Final Equity ₹"] - initial_capital:,.2f}'
-            )
-
-            st.metric("Portfolio Return", f'{overall["Total Return %"]}%')
-
-            st.subheader("Stock-wise Backtest Report")
-
-            report_df = pd.DataFrame(stock_reports)
-            if not report_df.empty:
-
-                report_df = report_df.sort_values(
-                    "Win Rate %",
-                    ascending=False
+                c5.metric("Starting Capital", f'₹{initial_capital:,.0f}')
+                c6.metric("Final Capital", f'₹{overall["Final Equity ₹"]:,.2f}')
+                c7.metric(
+                    "Net Profit / Loss",
+                    f'₹{overall["Final Equity ₹"] - initial_capital:,.2f}'
                 )
 
+                st.metric("Portfolio Return", f'{overall["Total Return %"]}%')
+
+                st.subheader("Stock-wise Backtest Report")
+
+                report_df = pd.DataFrame(stock_reports)
+                if not report_df.empty:
+
+                    report_df = report_df.sort_values(
+                        "Win Rate %",
+                        ascending=False
+                    )
+
+                    st.dataframe(
+                        report_df,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                    st.download_button(
+                        "Download Backtest Report",
+                        report_df.to_csv(index=False).encode("utf-8"),
+                        file_name="SSA_Backtest_Report.csv",
+                        mime="text/csv"
+                    )
+
+                trade_df = pd.DataFrame(portfolio_trades)
+
+                st.subheader("Historical Trade Records")
+
                 st.dataframe(
-                    report_df,
+                    trade_df,
                     use_container_width=True,
                     hide_index=True
                 )
 
                 st.download_button(
-                    "Download Backtest Report",
-                    report_df.to_csv(index=False).encode("utf-8"),
-                    file_name="SSA_Backtest_Report.csv",
+                    "Download All Historical Trades",
+                    trade_df.to_csv(index=False).encode("utf-8"),
+                    file_name="SSA_Historical_Trades.csv",
                     mime="text/csv"
                 )
-
-            trade_df = pd.DataFrame(portfolio_trades)
-
-            st.subheader("Historical Trade Records")
-
-            st.dataframe(
-                trade_df,
-                use_container_width=True,
-                hide_index=True
-            )
-
-            st.download_button(
-                "Download All Historical Trades",
-                trade_df.to_csv(index=False).encode("utf-8"),
-                file_name="SSA_Historical_Trades.csv",
-                mime="text/csv"
-            )
-
         else:
 
             st.warning(
@@ -2517,7 +2151,8 @@ if st.button("SCAN STOCKS", type="primary"):
         st.info(
             "Backtest rules: BUY WATCH score >= 5; "
             "next-day Open entry; 1.5 ATR stop; "
-            "2 ATR target; maximum holding period as selected. "
+            "Target 1 = 1 ATR (50% booking), Target 2 = 2 ATR; "
+            "maximum holding period as selected. "
             "If stop and target are touched on the same candle, "
             "stop is assumed first. One open trade per stock. "
             "Costs are estimated, not actual broker charges."
@@ -2549,5 +2184,5 @@ else:
     st.write("No scan history in this session.")
 
 st.caption(
-    "SSA v0.4 | Advanced Backtesting | Manual Trading Only"
+    "SSA v0.6 | Advanced Backtesting | Manual Trading Only"
 )
