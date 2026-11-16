@@ -8,6 +8,63 @@ import plotly.graph_objects as go
 from datetime import date, datetime
 
 
+
+def normalize_yfinance_columns(df, symbol=None):
+    """Return flat OHLCV columns from yfinance single/multi-ticker output."""
+    if df is None or df.empty:
+        return None
+
+    out = df.copy()
+    required = {"Open", "High", "Low", "Close", "Volume"}
+
+    if isinstance(out.columns, pd.MultiIndex):
+        selected = None
+        if symbol is not None:
+            for level in range(out.columns.nlevels):
+                if symbol in out.columns.get_level_values(level):
+                    try:
+                        selected = out.xs(symbol, axis=1, level=level, drop_level=True)
+                        break
+                    except Exception:
+                        pass
+        if selected is None:
+            # Single-ticker responses may still have a one-symbol MultiIndex.
+            for level in range(out.columns.nlevels):
+                values = list(dict.fromkeys(out.columns.get_level_values(level)))
+                if required.issubset(set(map(str, values))):
+                    selected = out.copy()
+                    selected.columns = out.columns.get_level_values(level)
+                    break
+        if selected is None:
+            return None
+        out = selected
+
+    if isinstance(out.columns, pd.MultiIndex):
+        out.columns = out.columns.get_level_values(0)
+
+    # Remove duplicate columns without changing their first occurrence.
+    out = out.loc[:, ~pd.Index(out.columns).duplicated(keep="first")]
+    if not required.issubset(set(out.columns)):
+        return None
+
+    out = out[["Open", "High", "Low", "Close", "Volume"]].copy()
+    for col in out.columns:
+        out[col] = pd.to_numeric(out[col], errors="coerce")
+
+    out = out.replace([np.inf, -np.inf], np.nan)
+    out = out.dropna(subset=["Open", "High", "Low", "Close"])
+    out = out[
+        (out["Open"] > 0) & (out["High"] > 0)
+        & (out["Low"] > 0) & (out["Close"] > 0)
+        & (out["Volume"].isna() | (out["Volume"] >= 0))
+        & (out["High"] >= out["Low"])
+        & (out["High"] >= out[["Open", "Close"]].max(axis=1))
+        & (out["Low"] <= out[["Open", "Close"]].min(axis=1))
+    ]
+    out["Volume"] = out["Volume"].fillna(0)
+    out = out[~out.index.duplicated(keep="last")].sort_index()
+    return out if not out.empty else None
+
 st.set_page_config(
     page_title="Smart Stock Analyzer",
     page_icon="📊",
@@ -16,7 +73,7 @@ st.set_page_config(
 
 
 st.title("📊 Smart Stock Analyzer")
-"SSA v0.6 | Portfolio Backtesting | Manual Trading Only"
+"SSA v0.8 | Phase 1 Data & Backtest Corrections | Manual Trading Only"
 st.warning(
     "Yahoo Finance data may be delayed or unavailable. "
     "Verify prices with your broker. Historical results "
@@ -221,7 +278,7 @@ with tab_live:
                 period="5d",
                 interval=selected_interval,
                 group_by="ticker",
-                auto_adjust=False,
+                auto_adjust=True,
                 progress=False,
                 threads=False,
                 timeout=30
@@ -235,6 +292,7 @@ with tab_live:
 
             records = []
             stock_frames = {}
+            live_errors = []
 
 
             for symbol in symbols:
@@ -243,50 +301,14 @@ with tab_live:
                 try:
 
 
-                    if isinstance(live_data.columns, pd.MultiIndex):
-
-
-                        if symbol in live_data.columns.get_level_values(0):
-                            stock_df = live_data[symbol].copy()
-
-
-                        elif symbol in live_data.columns.get_level_values(1):
-                            stock_df = live_data.xs(
-                                symbol,
-                                axis=1,
-                                level=1
-                            ).copy()
-
-
-                        else:
-                            continue
-
-
-                    else:
-
-
-                        if len(symbols) != 1:
-                            continue
-
-
-                        stock_df = live_data.copy()
-
-
-                    if isinstance(stock_df.columns, pd.MultiIndex):
-                        stock_df.columns = (
-                            stock_df.columns.get_level_values(0)
-                        )
-
-
-                    if "Close" not in stock_df.columns:
+                    stock_df = normalize_yfinance_columns(live_data, symbol)
+                    if stock_df is None or stock_df.empty:
+                        live_errors.append(f"{symbol}: OHLCV data missing/invalid")
                         continue
 
-
                     stock_df = stock_df.dropna(
-                        subset=["Close"]
+                        subset=["Open", "High", "Low", "Close"]
                     )
-
-
                     if stock_df.empty:
                         continue
 
@@ -413,14 +435,24 @@ with tab_live:
                     })
 
 
-                except Exception:
+                except Exception as stock_error:
+                    live_errors.append(
+                        f"{symbol}: {str(stock_error)[:100]}"
+                    )
                     continue
 
 
+            if live_errors:
+                st.warning(
+                    "Some symbols were skipped: "
+                    + " | ".join(live_errors[:5])
+                )
+
             if not records:
-
-
-                st.warning("No usable market data received.")
+                st.error(
+                    "No usable market data received. Check Yahoo Finance response, "
+                    "symbol list, and internet connection."
+                )
                 return
 
 
@@ -673,7 +705,7 @@ with tab_live:
                             entry_price = float(open_position["Entry Price"])
                             quantity = int(open_position.get("Quantity", 1))
                             gross_pnl = (signal_price - entry_price) * quantity
-                            estimated_cost = (entry_price + signal_price) * quantity * (trading_cost / 100)
+                            estimated_cost = entry_price * quantity * (trading_cost / 100)
                             trade_pnl = round(gross_pnl - estimated_cost, 2)
                             investment = entry_price * quantity
                             trade_pnl_pct = round(trade_pnl / investment * 100, 2) if investment else 0.0
@@ -806,7 +838,7 @@ with tab_live:
 
 
                     unrealized_gross_pnl = (current_price - entry_price) * quantity
-                    estimated_exit_cost = (entry_price + current_price) * quantity * (trading_cost / 100)
+                    estimated_exit_cost = entry_price * quantity * (trading_cost / 100)
                     unrealized_pnl = round(
                         unrealized_gross_pnl - estimated_exit_cost, 2
                     )
@@ -1182,63 +1214,51 @@ with tab_live:
 
     live_market_monitor()
 
-def download_stock(symbol):
-
-
-    df = yf.download(
-        symbol,
-        period=period,
-        interval="1d",
-        progress=False,
-        auto_adjust=False,
-        threads=False
-    )
-
-
-    if df.empty:
+@st.cache_data(ttl=300, show_spinner=False)
+def download_stock(symbol, history_period):
+    """Cached daily history; auto_adjust keeps OHLC consistent across splits/dividends."""
+    try:
+        raw = yf.download(
+            symbol,
+            period=history_period,
+            interval="1d",
+            progress=False,
+            auto_adjust=True,
+            threads=False,
+            timeout=30
+        )
+        return normalize_yfinance_columns(raw, symbol)
+    except Exception:
         return None
-
-
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-
-
-    required = [
-        "Open", "High", "Low", "Close", "Volume"
-    ]
-
-
-    if not all(c in df.columns for c in required):
-        return None
-
-
-    df = df[required].copy()
-
-
-    for c in required:
-        df[c] = pd.to_numeric(df[c], errors="coerce")
-
-
-    df = df.dropna(
-        subset=["Open", "High", "Low", "Close"]
-    )
-
-
-    return df if len(df) else None
-
 
 
 
 def calculate_indicators(df):
 
 
-    df = df.copy()
+    if df is None or df.empty:
+        raise ValueError("No market data available for indicators.")
 
+    df = df.copy()
+    required = ["Open", "High", "Low", "Close", "Volume"]
+    if not all(col in df.columns for col in required):
+        raise ValueError("OHLCV columns are missing.")
+
+    for col in required:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    df = df.replace([np.inf, -np.inf], np.nan)
+    df = df.dropna(subset=["Open", "High", "Low", "Close"])
+    df = df[
+        (df["Open"] > 0) & (df["High"] > 0) & (df["Low"] > 0)
+        & (df["Close"] > 0) & (df["High"] >= df["Low"])
+    ].copy()
+    if df.empty:
+        raise ValueError("No valid OHLC rows remain after data validation.")
 
     close = df["Close"]
     high = df["High"]
     low = df["Low"]
-    volume = df["Volume"].fillna(0)
+    volume = df["Volume"].fillna(0).clip(lower=0)
 
 
     for span in [9, 20, 50, 200]:
@@ -1596,6 +1616,7 @@ def run_backtest(df, cost, max_days, symbol=""):
         remaining = 100.0
         booked = 0.0
         weighted_exit = 0.0
+        daily_marks = []
 
 
         t1_hit = False
@@ -1662,6 +1683,13 @@ def run_backtest(df, cost, max_days, symbol=""):
                         break
 
 
+                    mark_close = float(df["Close"].iloc[j])
+                    gross_mark_return = (
+                        ((weighted_exit + remaining * mark_close) / 100.0 / entry) - 1
+                    ) * 100
+                    daily_marks.append((
+                        str(df.index[j].date()), gross_mark_return
+                    ))
                     continue
 
 
@@ -1687,6 +1715,14 @@ def run_backtest(df, cost, max_days, symbol=""):
                     exit_reason = "Target 1 + Target 2"
                     exit_index = j
                     break
+
+            mark_close = float(df["Close"].iloc[j])
+            gross_mark_return = (
+                ((weighted_exit + remaining * mark_close) / 100.0 / entry) - 1
+            ) * 100
+            daily_marks.append((
+                str(df.index[j].date()), gross_mark_return
+            ))
 
 
         if remaining > 0:
@@ -1717,6 +1753,9 @@ def run_backtest(df, cost, max_days, symbol=""):
 
 
         net_return = gross_return - cost
+        daily_marks.append((
+            str(df.index[exit_index].date()), gross_return
+        ))
 
 
         trades.append({
@@ -1734,7 +1773,8 @@ def run_backtest(df, cost, max_days, symbol=""):
             "Exit ₹": round(average_exit, 2),
             "Target 1 Booked %": booked,
             "Exit Reason": exit_reason,
-            "Return %": round(net_return, 2)
+            "Return %": round(net_return, 2),
+            "_Daily Marks": daily_marks
         })
 
 
@@ -1812,8 +1852,10 @@ def simulate_portfolio(
     )
 
 
+    # For same-day trades, process same-day exits first so their capital
+    # can be reused by subsequent entries on that date.
     candidates = candidates.sort_values(
-        ["Entry Date", "Stock"]
+        ["Entry Date", "Exit Date", "Stock"]
     ).reset_index(drop=True)
 
 
@@ -1847,18 +1889,19 @@ def simulate_portfolio(
             continue
 
 
-        # Release positions exited before the new entry date.
+        # Release positions exited on or before the new entry date.
         remaining = []
 
 
         for pos in open_positions:
 
 
-            if pos["Exit Date"] < entry_date:
+            if pos["Exit Date"] <= entry_date:
 
 
                 cash += (
                     pos["Invested ₹"] + pos["P&L ₹"]
+                    + pos.get("Entry Fee ₹", 0.0)
                 )
 
 
@@ -1885,9 +1928,11 @@ def simulate_portfolio(
             continue
 
 
+        estimated_round_trip_cost_per_share = (
+            entry * trading_cost_pct / 100
+        )
         risk_per_share = (
-            entry - stop
-            + entry * trading_cost_pct / 100
+            entry - stop + estimated_round_trip_cost_per_share
         )
 
 
@@ -1900,8 +1945,13 @@ def simulate_portfolio(
 
 
         qty_risk = int(risk_amount / risk_per_share)
-        qty_allocation = int(allocation_limit / entry)
-        qty_cash = int(cash / entry)
+        entry_cost_per_share = entry * trading_cost_pct / 200
+        qty_allocation = int(
+            allocation_limit / (entry + entry_cost_per_share)
+        )
+        qty_cash = int(
+            cash / (entry + entry_cost_per_share)
+        )
 
 
         quantity = min(
@@ -1916,6 +1966,7 @@ def simulate_portfolio(
 
 
         invested = quantity * entry
+        entry_fee = invested * trading_cost_pct / 200
         pnl = invested * net_return / 100
 
 
@@ -1933,13 +1984,15 @@ def simulate_portfolio(
             ),
             "Quantity": quantity,
             "Invested ₹": round(invested, 2),
+            "Entry Fee ₹": round(entry_fee, 2),
             "P&L ₹": round(pnl, 2),
+            "_Daily Marks": trade.get("_Daily Marks", []),
             "Return %": round(net_return, 2),
             "Exit Reason": trade["Exit Reason"]
         }
 
 
-        cash -= invested
+        cash -= invested + entry_fee
         open_positions.append(position)
 
 
@@ -1952,6 +2005,7 @@ def simulate_portfolio(
 
         cash += (
             pos["Invested ₹"] + pos["P&L ₹"]
+            + pos.get("Entry Fee ₹", 0.0)
         )
 
 
@@ -1971,24 +2025,51 @@ def simulate_portfolio(
     ).reset_index(drop=True)
 
 
-    # Calculate realized daily equity and drawdown.
-    daily_pnl = result.groupby("Exit Date")["P&L ₹"].sum()
+    # Daily portfolio equity includes realized P&L and open-position
+    # unrealized P&L marked from each trade's historical daily closes.
+    result["_Entry Date TS"] = pd.to_datetime(result["Entry Date"])
+    result["_Exit Date TS"] = pd.to_datetime(result["Exit Date"])
+    first_day = result["_Entry Date TS"].min()
+    last_day = result["_Exit Date TS"].max()
+    mark_dates = set()
+    for mark_list in result["_Daily Marks"]:
+        for mark_date, _ in (mark_list or []):
+            parsed_date = pd.to_datetime(mark_date, errors="coerce")
+            if pd.notna(parsed_date):
+                mark_dates.add(parsed_date.normalize())
+    mark_dates.update([first_day.normalize(), last_day.normalize()])
+    all_days = sorted(mark_dates)
 
+    equity_values = [initial_capital]
+    for day in all_days:
+        portfolio_pnl = 0.0
+        for _, pos in result.iterrows():
+            entry_day = pos["_Entry Date TS"]
+            exit_day = pos["_Exit Date TS"]
+            if day < entry_day:
+                continue
+            invested_value = float(pos["Invested ₹"])
+            if day >= exit_day:
+                portfolio_pnl += float(pos["P&L ₹"])
+            else:
+                marks = {
+                    pd.to_datetime(mark_date).normalize(): float(mark_return)
+                    for mark_date, mark_return in (pos.get("_Daily Marks", []) or [])
+                }
+                eligible_marks = [
+                    mark_date for mark_date in marks if mark_date <= day
+                ]
+                gross_return = (
+                    marks[max(eligible_marks)] if eligible_marks else 0.0
+                )
+                # Entry-side fee is charged while the position is open.
+                open_net_return = gross_return - trading_cost_pct / 2
+                portfolio_pnl += invested_value * open_net_return / 100
+        equity_values.append(initial_capital + portfolio_pnl)
 
-    daily_equity = initial_capital + daily_pnl.cumsum()
-
-
-    equity_curve = pd.Series(
-        [initial_capital] + daily_equity.tolist()
-    )
-
-
+    equity_curve = pd.Series(equity_values, dtype=float)
     peak = equity_curve.cummax()
-
-
-    drawdown = (
-        equity_curve / peak - 1
-    ) * 100
+    drawdown = (equity_curve / peak - 1) * 100
 
 
     wins = result.loc[
@@ -2022,7 +2103,7 @@ def simulate_portfolio(
         ) if losses > 0 else "No Losses",
 
 
-        "Max Realized Drawdown %": round(
+        "Max Mark-to-Market Drawdown %": round(
             drawdown.min(), 2
         ),
 
@@ -2036,6 +2117,10 @@ def simulate_portfolio(
     }
 
 
+    result = result.drop(
+        columns=["_Daily Marks", "_Entry Date TS", "_Exit Date TS"],
+        errors="ignore"
+    )
     result["Entry Date"] = result["Entry Date"].dt.date
     result["Exit Date"] = result["Exit Date"].dt.date
 
@@ -2110,7 +2195,7 @@ with tab_scanner:
                 try:
 
 
-                    raw = download_stock(symbol)
+                    raw = download_stock(symbol, period)
 
 
                     if raw is None or len(raw) < 30:
@@ -2188,7 +2273,10 @@ with tab_scanner:
 
 
             if results:
-                df_result = pd.DataFrame(results)
+                chart_result_df = pd.DataFrame(results).copy()
+                df_result = chart_result_df[
+                    chart_result_df["Signal"].eq("BUY WATCH")
+                ].copy()
                 df_result = df_result.sort_values(
                     ["Score", "Volume Ratio"],
                     ascending=False,
@@ -2215,7 +2303,10 @@ with tab_scanner:
 
 
                 st.subheader(f"Qualifying Stocks: {len(df_result)}")
-                st.dataframe(df_result, use_container_width=True, hide_index=True)
+                if df_result.empty:
+                    st.info("No BUY WATCH stocks met the current filters. WATCH/WAIT stocks are not shown as qualifying.")
+                else:
+                    st.dataframe(df_result, use_container_width=True, hide_index=True)
                 st.download_button(
                     "Download Scan CSV",
                     df_result.to_csv(index=False).encode("utf-8"),
@@ -2231,9 +2322,15 @@ with tab_scanner:
                 )
 
 
+                chart_options_df = (
+                    df_result if not df_result.empty else chart_result_df
+                )
+                if df_result.empty:
+                    st.caption("Chart preview below is from WATCH/WAIT candidates; none qualified as BUY WATCH.")
+
                 selected_stock = st.selectbox(
                     "📊 Select Stock to View Candlestick Chart",
-                    df_result["Stock"].dropna().unique().tolist(),
+                    chart_options_df["Stock"].dropna().unique().tolist(),
                     key="scanner_chart_stock_dropdown"
                 )
 
@@ -2241,7 +2338,8 @@ with tab_scanner:
                 # IMPORTANT: Add .NS because scanner stores
                 # stock names without the Yahoo Finance suffix.
                 chart_df = download_stock(
-                    selected_stock + ".NS"
+                    selected_stock + ".NS",
+                    period
                 )
 
 
@@ -2301,8 +2399,8 @@ with tab_scanner:
                     )
 
 
-                    selected_row = df_result[
-                        df_result["Stock"] == selected_stock
+                    selected_row = chart_options_df[
+                        chart_options_df["Stock"] == selected_stock
                     ].iloc[0]
 
 
@@ -2520,7 +2618,7 @@ with tab_scanner:
                     c1.metric("Total Trades", overall["Trades"])
                     c2.metric("Win Rate", f'{overall["Win Rate %"]}%')
                     c3.metric("Profit Factor", overall["Profit Factor"])
-                    c4.metric("Max Realized Drawdown", f'{overall["Max Realized Drawdown %"]}%')
+                    c4.metric("Max Mark-to-Market Drawdown", f'{overall["Max Mark-to-Market Drawdown %"]}%')
 
 
                     c5, c6, c7 = st.columns(3)
