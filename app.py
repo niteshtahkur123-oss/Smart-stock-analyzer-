@@ -402,7 +402,7 @@ with tab_live:
 
 
                         "Stock": symbol.replace(".NS", ""),
-                        "LTP ₹": round(current_price, 2),
+                        "Last Candle Close ₹": round(current_price, 2),
 
 
                         "Change ₹": (
@@ -812,7 +812,7 @@ with tab_live:
                 metric_cols = st.columns(5)
 
 
-                metric_cols[0].metric("LTP", f"₹{current_price:.2f}")
+                metric_cols[0].metric("LAST CANDLE CLOSE", f"₹{current_price:.2f}")
                 metric_cols[1].metric("DAY HIGH", f"₹{day_high:.2f}")
                 metric_cols[2].metric("DAY LOW", f"₹{day_low:.2f}")
                 metric_cols[3].metric(
@@ -975,7 +975,7 @@ with tab_live:
                     line_dash="dot",
                     line_color="#2563EB",
                     line_width=2,
-                    annotation_text=f"LTP ₹{current_price:.2f}",
+                    annotation_text=f"LAST CANDLE CLOSE ₹{current_price:.2f}",
                     annotation_position="right"
                 )
                 # EMA 9
